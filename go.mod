@@ -3,7 +3,7 @@ module llama2
 go 1.20
 
 require (
-	github.com/lwch/gotorch v1.5.0
+	github.com/lwch/gotorch v1.5.1
 	github.com/lwch/logging v1.0.1
 	github.com/lwch/runtime v1.0.1
 	github.com/spf13/cobra v1.7.0
