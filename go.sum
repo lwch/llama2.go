@@ -3,8 +3,8 @@ github.com/dustin/go-humanize v1.0.0 h1:VSnTsYCnlFHaM2/igO1h6X3HA71jcobQuxemgkq4
 github.com/dustin/go-humanize v1.0.0/go.mod h1:HtrtbFcZ19U5GC7JDqmcUSB87Iq5E25KnS6fMYU6eOk=
 github.com/inconshreveable/mousetrap v1.1.0 h1:wN+x4NVGpMsO7ErUn/mUI3vEoE6Jt13X2s0bqwp9tc8=
 github.com/inconshreveable/mousetrap v1.1.0/go.mod h1:vpF70FUmC8bwa3OWnCshd2FqLfsEA9PFc4w1p2J65bw=
-github.com/lwch/gotorch v1.5.4 h1:Z9gk147oEFxXd2mZUw3uKj37BzpkMRz8Ufb5BTDZtg4=
-github.com/lwch/gotorch v1.5.4/go.mod h1:CPNgHULlgMUuLTkXxr7uRqwxWexJ75tMph3evfx/ZDI=
+github.com/lwch/gotorch v1.5.5 h1:GlVfFeEmf9dcsO291gsXQjOa7zm/5gxOxsFxMtKOE3c=
+github.com/lwch/gotorch v1.5.5/go.mod h1:CPNgHULlgMUuLTkXxr7uRqwxWexJ75tMph3evfx/ZDI=
 github.com/lwch/logging v1.0.1 h1:5v3XR5jaad/yuJsaC7OY8BfhHGHLT/pscc3iAVQTaKk=
 github.com/lwch/logging v1.0.1/go.mod h1:hiA9neZf+38gqBOAselhBL3NRz00+dr8d6vrHh8BJ88=
 github.com/lwch/runtime v1.0.0/go.mod h1:D9d6Uzg9Nea3M+bkNyLHNk6Nhlz/j1c4mze1gG0tReI=
