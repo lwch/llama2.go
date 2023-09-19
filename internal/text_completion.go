@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"fmt"
 	"path/filepath"
 
 	"github.com/lwch/gotorch/mmgr"
@@ -20,6 +21,6 @@ func TextCompletion(*cobra.Command, []string) {
 	m, err := model.Load(dir, s)
 	runtime.Assert(err)
 	logging.Info("model loaded")
-	_ = m
+	fmt.Println(m.Params())
 	select {}
 }
