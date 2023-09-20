@@ -32,7 +32,8 @@ func Convert(*cobra.Command, []string) {
 	dir = filepath.Join(ModelDir, ModelName, "params.json")
 	logging.Info("loading params from %s...", dir)
 	params := imodel.LoadParam(dir)
-	fmt.Println(json.MarshalIndent(params, "", "  "))
+	data, _ := json.MarshalIndent(params, "", "  ")
+	fmt.Println(string(data))
 
 	md := imodel.LoadFromTorch(m, params)
 

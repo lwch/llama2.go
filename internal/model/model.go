@@ -6,6 +6,7 @@ import (
 
 	"github.com/lwch/gotorch/consts"
 	gmodel "github.com/lwch/gotorch/model"
+	"github.com/lwch/gotorch/tensor"
 	"github.com/lwch/tnn/nn/net"
 )
 
@@ -17,18 +18,26 @@ type Model struct {
 }
 
 func LoadFromTorch(m *gmodel.Model, params *Params) *Model {
+	getParam := func(m *gmodel.Model, name string) *tensor.Tensor {
+		t := m.Get(name)
+		if t == nil {
+			panic(fmt.Sprintf("cannot find %s", name))
+		}
+		return t
+	}
+
 	var md Model
-	md.embedding = ilayer.NewEmbedding(m.Get("tok_embeddings.weight"))
+	md.embedding = ilayer.NewEmbedding(getParam(m, "tok_embeddings.weight"))
 	for i := 0; i < params.Layers; i++ {
-		wk := m.Get(fmt.Sprintf("layers.%d.attention.wk.weight", i))
-		wq := m.Get(fmt.Sprintf("layers.%d.attention.wq.weight", i))
-		wv := m.Get(fmt.Sprintf("layers.%d.attention.wv.weight", i))
-		wo := m.Get(fmt.Sprintf("layers.%d.attention.wo.weight", i))
-		norm1 := m.Get(fmt.Sprintf("layers.%d.attention.norm", i))
-		w1 := m.Get(fmt.Sprintf("layers.%d.feed_forward.w1.weight", i))
-		w2 := m.Get(fmt.Sprintf("layers.%d.feed_forward.w2.weight", i))
-		w3 := m.Get(fmt.Sprintf("layers.%d.feed_forward.w3.weight", i))
-		norm2 := m.Get(fmt.Sprintf("layers.%d.ffn_norm.norm", i))
+		wk := getParam(m, fmt.Sprintf("layers.%d.attention.wk.weight", i))
+		wq := getParam(m, fmt.Sprintf("layers.%d.attention.wq.weight", i))
+		wv := getParam(m, fmt.Sprintf("layers.%d.attention.wv.weight", i))
+		wo := getParam(m, fmt.Sprintf("layers.%d.attention.wo.weight", i))
+		norm1 := getParam(m, fmt.Sprintf("layers.%d.attention.norm", i))
+		w1 := getParam(m, fmt.Sprintf("layers.%d.feed_forward.w1.weight", i))
+		w2 := getParam(m, fmt.Sprintf("layers.%d.feed_forward.w2.weight", i))
+		w3 := getParam(m, fmt.Sprintf("layers.%d.feed_forward.w3.weight", i))
+		norm2 := getParam(m, fmt.Sprintf("layers.%d.ffn_norm.norm", i))
 
 		var block block
 		block.attn = ilayer.NewAttention(wq, wk, wv, wo)
@@ -38,8 +47,8 @@ func LoadFromTorch(m *gmodel.Model, params *Params) *Model {
 
 		md.blocks = append(md.blocks, &block)
 	}
-	md.norm = ilayer.NewRMSNorm(m.Get("norm.weight"))
-	md.output = ilayer.NewLinear(m.Get("output.weight"))
+	md.norm = ilayer.NewRMSNorm(getParam(m, "norm.weight"))
+	md.output = ilayer.NewLinear(getParam(m, "output.weight"))
 	return &md
 }
 
