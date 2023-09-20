@@ -7,7 +7,7 @@ require (
 	github.com/lwch/logging v1.0.1
 	github.com/lwch/runtime v1.0.1
 	github.com/lwch/sentencepiece v0.0.0-20230920093000-961045bbddf1
-	github.com/lwch/tnn v1.0.2-0.20230920101352-79df70dd8aa7
+	github.com/lwch/tnn v1.0.2-0.20230920104456-8cedba5e1851
 	github.com/spf13/cobra v1.7.0
 )
 
