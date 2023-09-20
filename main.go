@@ -17,6 +17,12 @@ var rootCmd = &cobra.Command{
 	},
 }
 
+var convertCmd = &cobra.Command{
+	Use:   "convert",
+	Short: "Convert model to tnn model",
+	Run:   internal.Convert,
+}
+
 var textCompletionCmd = &cobra.Command{
 	Use:   "text-completion",
 	Short: "Text completion",
@@ -24,6 +30,12 @@ var textCompletionCmd = &cobra.Command{
 }
 
 func main() {
+	convertCmd.Flags().StringVar(&internal.ModelDir, "model", "", "model directory")
+	convertCmd.Flags().StringVar(&internal.OutputDir, "output", "", "output directory")
+	runtime.Assert(convertCmd.MarkFlagRequired("model"))
+	runtime.Assert(convertCmd.MarkFlagRequired("output"))
+	rootCmd.AddCommand(convertCmd)
+
 	textCompletionCmd.Flags().StringVar(&internal.ModelDir, "model", "", "model directory")
 	textCompletionCmd.Flags().StringVar(&internal.ModelName, "name", "", "model name, like llama-2-7b")
 	runtime.Assert(textCompletionCmd.MarkFlagRequired("model"))
