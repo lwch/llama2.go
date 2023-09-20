@@ -26,6 +26,8 @@ func LoadFromTorch(m *gmodel.Model, params *Params) *Model {
 		return t
 	}
 
+	eps := tensor.FromFloat32(nil, []float32{params.Eps}, tensor.WithShapes(1))
+
 	var md Model
 	md.embedding = ilayer.NewEmbedding(getParam(m, "tok_embeddings.weight"))
 	for i := 0; i < params.Layers; i++ {
@@ -41,13 +43,13 @@ func LoadFromTorch(m *gmodel.Model, params *Params) *Model {
 
 		var block block
 		block.attn = ilayer.NewAttention(wq, wk, wv, wo)
-		block.attnNorm = ilayer.NewRMSNorm(norm1)
+		block.attnNorm = ilayer.NewRMSNorm(norm1, eps)
 		block.ffn = newFeedforward(w1, w2, w3)
-		block.ffnNorm = ilayer.NewRMSNorm(norm2)
+		block.ffnNorm = ilayer.NewRMSNorm(norm2, eps)
 
 		md.blocks = append(md.blocks, &block)
 	}
-	md.norm = ilayer.NewRMSNorm(getParam(m, "norm.weight"))
+	md.norm = ilayer.NewRMSNorm(getParam(m, "norm.weight"), eps)
 	md.output = ilayer.NewLinear(getParam(m, "output.weight"))
 	params.Vocabs = int(getParam(m, "output.weight").Shapes()[0])
 	return &md

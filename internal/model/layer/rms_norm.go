@@ -9,21 +9,35 @@ import (
 
 type RMSNorm struct {
 	Module
-	w *tensor.Tensor
+	w   *tensor.Tensor
+	eps *tensor.Tensor
 }
 
 var _ layer.Layer = &RMSNorm{}
 
-func NewRMSNorm(w *tensor.Tensor) *RMSNorm {
+func NewRMSNorm(w, eps *tensor.Tensor) *RMSNorm {
+	eps.SetRequiresGrad(false)
 	return &RMSNorm{
-		w: w,
+		w:   w,
+		eps: eps,
 	}
+}
+
+func (l *RMSNorm) norm(x *tensor.Tensor) *tensor.Tensor {
+	return x.Mul(x.Pow(2).Mean(-1, true).Add(l.eps).RSqrt())
+}
+
+func (l *RMSNorm) Forward(x *tensor.Tensor) *tensor.Tensor {
+	y := l.norm(x.ToScalarType(consts.KFloat)).ToScalarType(x.ScalarType())
+	return y.Mul(l.w)
 }
 
 func init() {
 	net.RegisterLoadFunc("llama2.rmsnorm", func(name string, params map[string]*tensor.Tensor, args map[string]float32) layer.Layer {
-		var layer Attention
-		layer.wq = params["w"]
+		var layer RMSNorm
+		layer.w = params["w"]
+		layer.eps = params["eps"]
+		layer.eps.SetRequiresGrad(false)
 		return &layer
 	})
 }
@@ -34,7 +48,8 @@ func (l *RMSNorm) Class() string {
 
 func (l *RMSNorm) Params() map[string]*tensor.Tensor {
 	return map[string]*tensor.Tensor{
-		"w": l.w,
+		"w":   l.w,
+		"eps": l.eps,
 	}
 }
 
