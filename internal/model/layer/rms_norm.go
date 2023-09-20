@@ -64,5 +64,6 @@ func (l *RMSNorm) Unfreeze() {
 func (l *RMSNorm) ToScalarType(t consts.ScalarType) *RMSNorm {
 	var layer RMSNorm
 	layer.w = l.w.ToScalarType(t)
+	layer.eps = l.eps
 	return &layer
 }
