@@ -33,11 +33,11 @@ func LoadFromTorch(m *gmodel.Model, params *Params) *Model {
 		wq := getParam(m, fmt.Sprintf("layers.%d.attention.wq.weight", i))
 		wv := getParam(m, fmt.Sprintf("layers.%d.attention.wv.weight", i))
 		wo := getParam(m, fmt.Sprintf("layers.%d.attention.wo.weight", i))
-		norm1 := getParam(m, fmt.Sprintf("layers.%d.attention.norm", i))
+		norm1 := getParam(m, fmt.Sprintf("layers.%d.attention.norm.weight", i))
 		w1 := getParam(m, fmt.Sprintf("layers.%d.feed_forward.w1.weight", i))
 		w2 := getParam(m, fmt.Sprintf("layers.%d.feed_forward.w2.weight", i))
 		w3 := getParam(m, fmt.Sprintf("layers.%d.feed_forward.w3.weight", i))
-		norm2 := getParam(m, fmt.Sprintf("layers.%d.ffn_norm.norm", i))
+		norm2 := getParam(m, fmt.Sprintf("layers.%d.ffn_norm.weight", i))
 
 		var block block
 		block.attn = ilayer.NewAttention(wq, wk, wv, wo)
