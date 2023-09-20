@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"fmt"
 	imodel "llama2/internal/model"
 	"path/filepath"
 
@@ -24,6 +25,8 @@ func Convert(*cobra.Command, []string) {
 	m, err := model.Load(dir, s)
 	runtime.Assert(err)
 	logging.Info("model loaded")
+
+	fmt.Println(m.Params())
 
 	dir = filepath.Join(ModelDir, "params.json")
 	logging.Info("loading params from %s...", dir)
