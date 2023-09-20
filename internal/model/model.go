@@ -55,6 +55,11 @@ func LoadFromTorch(m *gmodel.Model, params *Params) *Model {
 func (m *Model) ToScalarType(t consts.ScalarType) *Model {
 	var model Model
 	model.embedding = m.embedding.ToScalarType(t)
+	for _, block := range m.blocks {
+		model.blocks = append(model.blocks, block.toScalarType(t))
+	}
+	model.norm = m.norm.ToScalarType(t)
+	model.output = m.output.ToScalarType(t)
 	return &model
 }
 

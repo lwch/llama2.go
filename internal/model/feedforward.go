@@ -60,7 +60,7 @@ func (l *feedforward) Unfreeze() {
 	l.w3.SetRequiresGrad(true)
 }
 
-func (l *feedforward) ToScalarType(t consts.ScalarType) *feedforward {
+func (l *feedforward) toScalarType(t consts.ScalarType) *feedforward {
 	var layer feedforward
 	layer.w1 = l.w1.ToScalarType(t)
 	layer.w2 = l.w2.ToScalarType(t)
