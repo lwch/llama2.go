@@ -20,6 +20,10 @@ func NewLinear(w *tensor.Tensor) *Linear {
 	}
 }
 
+func (l *Linear) Forward(x *tensor.Tensor) *tensor.Tensor {
+	return x.MatMul(l.w)
+}
+
 func init() {
 	net.RegisterLoadFunc("llama2.linear", func(name string, params map[string]*tensor.Tensor, args map[string]float32) layer.Layer {
 		var layer Linear

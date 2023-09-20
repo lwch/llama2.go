@@ -20,6 +20,10 @@ func NewEmbedding(w *tensor.Tensor) *Embedding {
 	}
 }
 
+func (l *Embedding) Forward(x *tensor.Tensor) *tensor.Tensor {
+	return tensor.Embedding(x, l.w, -1)
+}
+
 func init() {
 	net.RegisterLoadFunc("llama2.embedding", func(name string, params map[string]*tensor.Tensor, args map[string]float32) layer.Layer {
 		var layer Embedding
