@@ -1,4 +1,4 @@
-package model
+package layer
 
 import (
 	"github.com/lwch/gotorch/consts"
@@ -7,47 +7,47 @@ import (
 	"github.com/lwch/tnn/nn/net"
 )
 
-type embeddingLayer struct {
-	module
+type Embedding struct {
+	Module
 	w *tensor.Tensor
 }
 
-var _ layer.Layer = &embeddingLayer{}
+var _ layer.Layer = &Embedding{}
 
-func newEmbeddingLayer(w *tensor.Tensor) *embeddingLayer {
-	return &embeddingLayer{
+func NewEmbedding(w *tensor.Tensor) *Embedding {
+	return &Embedding{
 		w: w,
 	}
 }
 
 func init() {
 	net.RegisterLoadFunc("llama2.embedding", func(name string, params map[string]*tensor.Tensor, args map[string]float32) layer.Layer {
-		var layer embeddingLayer
+		var layer Embedding
 		layer.w = params["w"]
 		return &layer
 	})
 }
 
-func (l *embeddingLayer) Class() string {
+func (l *Embedding) Class() string {
 	return "llama2.embedding"
 }
 
-func (l *embeddingLayer) Params() map[string]*tensor.Tensor {
+func (l *Embedding) Params() map[string]*tensor.Tensor {
 	return map[string]*tensor.Tensor{
 		"w": l.w,
 	}
 }
 
-func (l *embeddingLayer) Freeze() {
+func (l *Embedding) Freeze() {
 	l.w.SetRequiresGrad(false)
 }
 
-func (l *embeddingLayer) Unfreeze() {
+func (l *Embedding) Unfreeze() {
 	l.w.SetRequiresGrad(true)
 }
 
-func (l *embeddingLayer) ToScalarType(t consts.ScalarType) *embeddingLayer {
-	var layer embeddingLayer
+func (l *Embedding) ToScalarType(t consts.ScalarType) *Embedding {
+	var layer Embedding
 	layer.w = l.w.ToScalarType(t)
 	return &layer
 }

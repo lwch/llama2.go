@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"encoding/json"
 	"fmt"
 	imodel "llama2/internal/model"
 	"os"
@@ -28,17 +29,16 @@ func Convert(*cobra.Command, []string) {
 	runtime.Assert(err)
 	logging.Info("model loaded")
 
-	fmt.Println(m.Params())
-
 	dir = filepath.Join(ModelDir, ModelName, "params.json")
 	logging.Info("loading params from %s...", dir)
 	params := imodel.LoadParam(dir)
-	logging.Info("params loaded")
+	fmt.Println(json.MarshalIndent(params, "", "  "))
 
 	md := imodel.LoadFromTorch(m, params)
 
 	os.MkdirAll(OutputDir, 0755)
 	dir = filepath.Join(OutputDir, "llama2.model")
-	md.ToScalarType(consts.KBFloat16).Save(dir)
-	logging.Info("model saved to %s", dir)
+	logging.Info("saving model to %s...", dir)
+	md.ToScalarType(consts.KBFloat16).Save(dir) // TODO: quantize
+	logging.Info("model saved")
 }
