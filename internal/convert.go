@@ -3,6 +3,7 @@ package internal
 import (
 	"fmt"
 	imodel "llama2/internal/model"
+	"os"
 	"path/filepath"
 
 	"github.com/lwch/gotorch/consts"
@@ -14,13 +15,14 @@ import (
 )
 
 var ModelDir string
+var ModelName string
 var OutputDir string
 
 func Convert(*cobra.Command, []string) {
 	s := mmgr.New()
 	defer s.GC()
 
-	dir := filepath.Join(ModelDir, "consolidated.00.pth")
+	dir := filepath.Join(ModelDir, ModelName, "consolidated.00.pth")
 	logging.Info("loading model from %s...", dir)
 	m, err := model.Load(dir, s)
 	runtime.Assert(err)
@@ -28,11 +30,15 @@ func Convert(*cobra.Command, []string) {
 
 	fmt.Println(m.Params())
 
-	dir = filepath.Join(ModelDir, "params.json")
+	dir = filepath.Join(ModelDir, ModelName, "params.json")
 	logging.Info("loading params from %s...", dir)
 	params := imodel.LoadParam(dir)
 	logging.Info("params loaded")
 
 	md := imodel.LoadFromTorch(m, params)
-	md.ToScalarType(consts.KBFloat16).Save(OutputDir)
+
+	os.MkdirAll(OutputDir, 0755)
+	dir = filepath.Join(OutputDir, "llama2.model")
+	md.ToScalarType(consts.KBFloat16).Save(dir)
+	logging.Info("model saved to %s", dir)
 }
