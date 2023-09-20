@@ -12,7 +12,6 @@ import (
 	"github.com/lwch/gotorch/model"
 	"github.com/lwch/logging"
 	"github.com/lwch/runtime"
-	"github.com/lwch/sentencepiece"
 	"github.com/spf13/cobra"
 )
 
@@ -24,17 +23,9 @@ func Convert(*cobra.Command, []string) {
 	s := mmgr.New()
 	defer s.GC()
 
-	dir := filepath.Join(ModelDir, "tokenizer.model")
-	logging.Info("loading tokenizer from %s...", dir)
-	tk, err := sentencepiece.Load(dir)
-	runtime.Assert(err)
-
-	dir = filepath.Join(ModelDir, ModelName, "params.json")
+	dir := filepath.Join(ModelDir, ModelName, "params.json")
 	logging.Info("loading params from %s...", dir)
 	params := imodel.LoadParam(dir)
-	params.Vocabs = tk.Count()
-	data, _ := json.MarshalIndent(params, "", "  ")
-	fmt.Println(string(data))
 
 	dir = filepath.Join(ModelDir, ModelName, "consolidated.00.pth")
 	logging.Info("loading model from %s...", dir)
@@ -43,6 +34,9 @@ func Convert(*cobra.Command, []string) {
 	logging.Info("model loaded")
 
 	md := imodel.LoadFromTorch(m, params)
+	data, _ := json.MarshalIndent(params, "", "  ")
+	fmt.Println("params:")
+	fmt.Println(string(data))
 
 	os.MkdirAll(OutputDir, 0755)
 	dir = filepath.Join(OutputDir, "llama2.model")

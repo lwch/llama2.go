@@ -49,10 +49,7 @@ func LoadFromTorch(m *gmodel.Model, params *Params) *Model {
 	}
 	md.norm = ilayer.NewRMSNorm(getParam(m, "norm.weight"))
 	md.output = ilayer.NewLinear(getParam(m, "output.weight"))
-	shapes := getParam(m, "output.weight").Shapes()
-	if shapes[len(shapes)-1] != int64(params.Vocabs) {
-		panic(fmt.Sprintf("output.weight shape mismatch: %v", shapes))
-	}
+	params.Vocabs = int(getParam(m, "output.weight").Shapes()[0])
 	return &md
 }
 
