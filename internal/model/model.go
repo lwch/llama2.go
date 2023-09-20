@@ -11,9 +11,9 @@ type Model struct {
 }
 
 func LoadFromTorch(m *gmodel.Model, params *Params) *Model {
-	return &Model{
-		embedding: newEmbeddingLayer(m.Get("tok_embeddings")),
-	}
+	var md Model
+	md.embedding = newEmbeddingLayer(m.Get("tok_embeddings.weight"))
+	return &md
 }
 
 func (m *Model) ToScalarType(t consts.ScalarType) *Model {
