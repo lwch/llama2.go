@@ -26,6 +26,11 @@ func newFeedforward(w1, w2, w3 *tensor.Tensor) *feedforward {
 	}
 }
 
+func (l *feedforward) forward(x *tensor.Tensor) *tensor.Tensor {
+	// TODO: implement feedforward
+	return x
+}
+
 func init() {
 	net.RegisterLoadFunc("llama2.ffn", func(name string, params map[string]*tensor.Tensor, args map[string]float32) layer.Layer {
 		var layer feedforward

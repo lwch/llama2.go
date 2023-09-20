@@ -7,6 +7,7 @@ import (
 	"github.com/lwch/gotorch/consts"
 	gmodel "github.com/lwch/gotorch/model"
 	"github.com/lwch/gotorch/tensor"
+	"github.com/lwch/runtime"
 	"github.com/lwch/tnn/nn/net"
 )
 
@@ -53,6 +54,43 @@ func LoadFromTorch(m *gmodel.Model, params *Params) *Model {
 	md.output = ilayer.NewLinear(getParam(m, "output.weight"))
 	params.Vocabs = int(getParam(m, "output.weight").Shapes()[0])
 	return &md
+}
+
+func LoadFromTNN(dir string, params *Params) *Model {
+	var net net.Net
+	err := net.Load(dir)
+	runtime.Assert(err)
+	layers := net.Layers()
+
+	var md Model
+	var idx int
+	md.embedding = layers[idx].(*ilayer.Embedding)
+	idx++
+	for i := 0; i < params.Layers; i++ {
+		var block block
+		block.attn = layers[idx].(*ilayer.Attention)
+		idx++
+		block.attnNorm = layers[idx].(*ilayer.RMSNorm)
+		idx++
+		block.ffn = layers[idx].(*feedforward)
+		idx++
+		block.ffnNorm = layers[idx].(*ilayer.RMSNorm)
+		idx++
+		md.blocks = append(md.blocks, &block)
+	}
+	md.norm = layers[idx].(*ilayer.RMSNorm)
+	idx++
+	md.output = layers[idx].(*ilayer.Linear)
+	return &md
+}
+
+func (m *Model) Forward(x *tensor.Tensor) *tensor.Tensor {
+	x = m.embedding.Forward(x)
+	for _, block := range m.blocks {
+		x = block.forward(x)
+	}
+	x = m.norm.Forward(x)
+	return m.output.Forward(x)
 }
 
 func (m *Model) ToScalarType(t consts.ScalarType) *Model {

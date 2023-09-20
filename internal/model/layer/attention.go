@@ -26,6 +26,11 @@ func NewAttention(wq, wk, wv, wo *tensor.Tensor) *Attention {
 	}
 }
 
+func (l *Attention) Forward(x *tensor.Tensor) *tensor.Tensor {
+	// TODO: implement attention
+	return x
+}
+
 func init() {
 	net.RegisterLoadFunc("llama2.attention", func(name string, params map[string]*tensor.Tensor, args map[string]float32) layer.Layer {
 		var layer Attention
