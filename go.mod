@@ -6,6 +6,7 @@ require (
 	github.com/lwch/gotorch v1.5.6
 	github.com/lwch/logging v1.0.1
 	github.com/lwch/runtime v1.0.1
+	github.com/lwch/sentencepiece v0.0.0-20230920093000-961045bbddf1
 	github.com/lwch/tnn v1.0.2-0.20230920081245-94462015fe84
 	github.com/spf13/cobra v1.7.0
 )

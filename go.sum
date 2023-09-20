@@ -16,6 +16,8 @@ github.com/lwch/logging v1.0.1/go.mod h1:hiA9neZf+38gqBOAselhBL3NRz00+dr8d6vrHh8
 github.com/lwch/runtime v1.0.0/go.mod h1:D9d6Uzg9Nea3M+bkNyLHNk6Nhlz/j1c4mze1gG0tReI=
 github.com/lwch/runtime v1.0.1 h1:xfurs9IGzkTWfdum1K5GaDkEuGopohOQhk7roELmbf4=
 github.com/lwch/runtime v1.0.1/go.mod h1:mJuSABS7wUvRK3rUyV624NZ3+rV5eiAhsGEuU1iNrtk=
+github.com/lwch/sentencepiece v0.0.0-20230920093000-961045bbddf1 h1:lDanZmcxClDPy0N8YmPPIrzMJ0OhQ+dqrakzHXAN6OM=
+github.com/lwch/sentencepiece v0.0.0-20230920093000-961045bbddf1/go.mod h1:lX7J/bSUtglVl0AK+w7HHHanHKAbMhETco1TJ5HvdOI=
 github.com/lwch/tnn v1.0.2-0.20230920081245-94462015fe84 h1:ISSLDMWtKwoBX7eqvUfbhjYmHWlrMdmsIYG8QUz3PoQ=
 github.com/lwch/tnn v1.0.2-0.20230920081245-94462015fe84/go.mod h1:w/SSH7JP4dgGvOTr0VdXjqLSZkeuLDtr9C/jf/H7Duk=
 github.com/nlpodyssey/gopickle v0.2.0 h1:4naD2DVylYJupQLbCQFdwo6yiXEmPyp+0xf5MVlrBDY=
