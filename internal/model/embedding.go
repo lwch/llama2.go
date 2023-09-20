@@ -1,6 +1,7 @@
 package model
 
 import (
+	"github.com/lwch/gotorch/consts"
 	"github.com/lwch/gotorch/tensor"
 	"github.com/lwch/tnn/nn/layer"
 	"github.com/lwch/tnn/nn/net"
@@ -43,4 +44,10 @@ func (l *embeddingLayer) Freeze() {
 
 func (l *embeddingLayer) Unfreeze() {
 	l.w.SetRequiresGrad(true)
+}
+
+func (l *embeddingLayer) ToScalarType(t consts.ScalarType) *embeddingLayer {
+	var layer embeddingLayer
+	layer.w = l.w.ToScalarType(t)
+	return &layer
 }

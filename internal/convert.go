@@ -34,5 +34,5 @@ func Convert(*cobra.Command, []string) {
 	logging.Info("params loaded")
 
 	md := imodel.LoadFromTorch(m, params)
-	md.To(consts.KBFloat16).Save(OutputDir)
+	md.ToScalarType(consts.KBFloat16).Save(OutputDir)
 }

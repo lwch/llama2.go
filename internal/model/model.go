@@ -16,12 +16,14 @@ func LoadFromTorch(m *gmodel.Model, params *Params) *Model {
 	}
 }
 
-func (m *Model) To(t consts.ScalarType) *Model {
+func (m *Model) ToScalarType(t consts.ScalarType) *Model {
 	var model Model
+	model.embedding = m.embedding.ToScalarType(t)
 	return &model
 }
 
 func (m *Model) Save(dir string) error {
 	var net net.Net
+	net.Add(m.embedding)
 	return net.Save(dir)
 }
