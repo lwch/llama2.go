@@ -1,6 +1,8 @@
 package internal
 
 import (
+	"bytes"
+	"fmt"
 	"io"
 	"llama2/internal/model"
 	"os"
@@ -28,11 +30,22 @@ func TextCompletion(*cobra.Command, []string) {
 	logging.Info("loading params from %s...", dir)
 	params := model.LoadParam(dir)
 
-	m := model.LoadFromTNN(filepath.Join(ModelDir, "llama2.model"), params)
+	dir = filepath.Join(ModelDir, "llama2.model")
+	logging.Info("loading model from %s...", dir)
+	m := model.LoadFromTNN(dir, params)
+	logging.Info("model loaded")
+
 	input, err := io.ReadAll(os.Stdin)
 	runtime.Assert(err)
+	input = bytes.TrimSpace(input)
 	tks := tk.Encode(string(input), true, false)
-	m.Forward(buildInput(s, tks))
+	data := m.Forward(buildInput(s, tks)).Softmax(-1).BFloat16Value()
+	var labels []uint64
+	for i := 0; i < len(tks); i++ {
+		idx := getLabel(data[i*params.Vocabs : (i+1)*params.Vocabs])
+		labels = append(labels, idx)
+	}
+	fmt.Println(tk.Decode(labels))
 }
 
 func buildInput(s *mmgr.Storage, tks []uint64) *tensor.Tensor {
@@ -42,4 +55,16 @@ func buildInput(s *mmgr.Storage, tks []uint64) *tensor.Tensor {
 	}
 	return tensor.FromInt64(s, data,
 		tensor.WithShapes(1, int64(len(tks))))
+}
+
+func getLabel(data []float32) uint64 {
+	var max float32
+	var idx uint64
+	for i, v := range data {
+		if v > max {
+			max = v
+			idx = uint64(i)
+		}
+	}
+	return idx
 }

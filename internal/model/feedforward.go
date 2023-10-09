@@ -2,6 +2,7 @@ package model
 
 import (
 	ilayer "llama2/internal/model/layer"
+	"llama2/internal/model/parallel"
 
 	"github.com/lwch/gotorch/consts"
 	"github.com/lwch/gotorch/tensor"
@@ -27,8 +28,10 @@ func newFeedforward(w1, w2, w3 *tensor.Tensor) *feedforward {
 }
 
 func (l *feedforward) forward(x *tensor.Tensor) *tensor.Tensor {
-	// TODO: implement feedforward
-	return x
+	left := parallel.MatMul(x, l.w1).Silu()
+	right := parallel.MatMul(x, l.w3)
+	x = left.Mul(right)
+	return parallel.MatMul(x, l.w2)
 }
 
 func init() {

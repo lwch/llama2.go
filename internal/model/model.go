@@ -32,18 +32,18 @@ func LoadFromTorch(m *gmodel.Model, params *Params) *Model {
 	var md Model
 	md.embedding = ilayer.NewEmbedding(getParam(m, "tok_embeddings.weight"))
 	for i := 0; i < params.Layers; i++ {
-		wk := getParam(m, fmt.Sprintf("layers.%d.attention.wk.weight", i))
-		wq := getParam(m, fmt.Sprintf("layers.%d.attention.wq.weight", i))
-		wv := getParam(m, fmt.Sprintf("layers.%d.attention.wv.weight", i))
-		wo := getParam(m, fmt.Sprintf("layers.%d.attention.wo.weight", i))
+		wk := getParam(m, fmt.Sprintf("layers.%d.attention.wk.weight", i)).Transpose(0, 1)
+		wq := getParam(m, fmt.Sprintf("layers.%d.attention.wq.weight", i)).Transpose(0, 1)
+		wv := getParam(m, fmt.Sprintf("layers.%d.attention.wv.weight", i)).Transpose(0, 1)
+		wo := getParam(m, fmt.Sprintf("layers.%d.attention.wo.weight", i)).Transpose(0, 1)
 		norm1 := getParam(m, fmt.Sprintf("layers.%d.attention_norm.weight", i))
-		w1 := getParam(m, fmt.Sprintf("layers.%d.feed_forward.w1.weight", i))
-		w2 := getParam(m, fmt.Sprintf("layers.%d.feed_forward.w2.weight", i))
-		w3 := getParam(m, fmt.Sprintf("layers.%d.feed_forward.w3.weight", i))
+		w1 := getParam(m, fmt.Sprintf("layers.%d.feed_forward.w1.weight", i)).Transpose(0, 1)
+		w2 := getParam(m, fmt.Sprintf("layers.%d.feed_forward.w2.weight", i)).Transpose(0, 1)
+		w3 := getParam(m, fmt.Sprintf("layers.%d.feed_forward.w3.weight", i)).Transpose(0, 1)
 		norm2 := getParam(m, fmt.Sprintf("layers.%d.ffn_norm.weight", i))
 
 		var block block
-		block.attn = ilayer.NewAttention(wq, wk, wv, wo)
+		block.attn = ilayer.NewAttention(wq, wk, wv, wo, params.Heads, params.Dim)
 		block.attnNorm = ilayer.NewRMSNorm(norm1, eps)
 		block.ffn = newFeedforward(w1, w2, w3)
 		block.ffnNorm = ilayer.NewRMSNorm(norm2, eps)
@@ -51,7 +51,7 @@ func LoadFromTorch(m *gmodel.Model, params *Params) *Model {
 		md.blocks = append(md.blocks, &block)
 	}
 	md.norm = ilayer.NewRMSNorm(getParam(m, "norm.weight"), eps)
-	md.output = ilayer.NewLinear(getParam(m, "output.weight"))
+	md.output = ilayer.NewLinear(getParam(m, "output.weight").Transpose(0, 1))
 	params.Vocabs = int(getParam(m, "output.weight").Shapes()[0])
 	return &md
 }
