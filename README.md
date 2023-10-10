@@ -30,3 +30,15 @@ Port of Facebook's LLaMA model in go
     ├── params.json
     └── tokenizer.model
     ```
+
+4. text completion
+    ```shell
+    echo "PyTorch is" | ./llama2 text-completion --model ./models
+
+    2023/10/10 17:34:13 [INFO]loading tokenizer from models/tokenizer.model...
+    2023/10/10 17:34:13 [INFO]tokenizer model loaded, token size: 32000
+    2023/10/10 17:34:13 [INFO]loading params from models/params.json...
+    2023/10/10 17:34:13 [INFO]loading model from models/llama2.model...
+    2023/10/10 17:34:28 [INFO]model loaded
+    PyTorch is a Python library for the creation of a ...
+    ```
