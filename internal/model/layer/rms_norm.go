@@ -28,8 +28,9 @@ func (l *RMSNorm) norm(x *tensor.Tensor) *tensor.Tensor {
 }
 
 func (l *RMSNorm) Forward(x *tensor.Tensor) *tensor.Tensor {
-	y := l.norm(x.ToScalarType(consts.KFloat)).ToScalarType(x.ScalarType())
-	return y.Mul(l.w)
+	// output := l.norm(x.ToScalarType(consts.KFloat)).ToScalarType(x.ScalarType())
+	output := l.norm(x)
+	return output.Mul(l.w)
 }
 
 func init() {

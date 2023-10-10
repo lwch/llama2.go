@@ -7,6 +7,7 @@ import (
 	"llama2/internal/model"
 	"os"
 	"path/filepath"
+	rt "runtime"
 
 	"github.com/lwch/gotorch/mmgr"
 	"github.com/lwch/gotorch/tensor"
@@ -35,17 +36,27 @@ func TextCompletion(*cobra.Command, []string) {
 	m := model.LoadFromTNN(dir, params)
 	logging.Info("model loaded")
 
+	rt.GC()
+
 	input, err := io.ReadAll(os.Stdin)
 	runtime.Assert(err)
 	input = bytes.TrimSpace(input)
 	tks := tk.Encode(string(input), true, false)
-	data := m.Forward(buildInput(s, tks)).Softmax(-1).BFloat16Value()
-	var labels []uint64
-	for i := 0; i < len(tks); i++ {
-		idx := getLabel(data[i*params.Vocabs : (i+1)*params.Vocabs])
-		labels = append(labels, idx)
+	fmt.Print(string(input))
+	for {
+		data := m.Forward(buildInput(s, tks)).
+			NArrow(1, -1, 1).View(-1).
+			Softmax(-1).BFloat16Value()
+		label := getLabel(data)
+		fmt.Print(tk.Decode([]uint64{label}))
+		s.GC()
+		rt.GC()
+		if label == uint64(tk.Eos()) {
+			fmt.Println()
+			break
+		}
+		tks = append(tks, label)
 	}
-	fmt.Println(tk.Decode(labels))
 }
 
 func buildInput(s *mmgr.Storage, tks []uint64) *tensor.Tensor {
@@ -58,8 +69,8 @@ func buildInput(s *mmgr.Storage, tks []uint64) *tensor.Tensor {
 }
 
 func getLabel(data []float32) uint64 {
-	var max float32
 	var idx uint64
+	var max float32
 	for i, v := range data {
 		if v > max {
 			max = v

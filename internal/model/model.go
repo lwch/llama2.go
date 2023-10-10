@@ -3,6 +3,7 @@ package model
 import (
 	"fmt"
 	ilayer "llama2/internal/model/layer"
+	"math"
 
 	"github.com/lwch/gotorch/consts"
 	gmodel "github.com/lwch/gotorch/model"
@@ -16,6 +17,7 @@ type Model struct {
 	blocks    []*block
 	norm      *ilayer.RMSNorm
 	output    *ilayer.Linear
+	freqs     *tensor.Tensor
 }
 
 func LoadFromTorch(m *gmodel.Model, params *Params) *Model {
@@ -27,19 +29,19 @@ func LoadFromTorch(m *gmodel.Model, params *Params) *Model {
 		return t
 	}
 
-	eps := tensor.FromFloat32(nil, []float32{params.Eps}, tensor.WithShapes(1))
+	eps := tensor.FromBFloat16(nil, []float32{params.Eps}, tensor.WithShapes(1))
 
 	var md Model
 	md.embedding = ilayer.NewEmbedding(getParam(m, "tok_embeddings.weight"))
 	for i := 0; i < params.Layers; i++ {
-		wk := getParam(m, fmt.Sprintf("layers.%d.attention.wk.weight", i)).Transpose(0, 1)
-		wq := getParam(m, fmt.Sprintf("layers.%d.attention.wq.weight", i)).Transpose(0, 1)
-		wv := getParam(m, fmt.Sprintf("layers.%d.attention.wv.weight", i)).Transpose(0, 1)
-		wo := getParam(m, fmt.Sprintf("layers.%d.attention.wo.weight", i)).Transpose(0, 1)
+		wk := getParam(m, fmt.Sprintf("layers.%d.attention.wk.weight", i)).Transpose(0, 1).Contiguous()
+		wq := getParam(m, fmt.Sprintf("layers.%d.attention.wq.weight", i)).Transpose(0, 1).Contiguous()
+		wv := getParam(m, fmt.Sprintf("layers.%d.attention.wv.weight", i)).Transpose(0, 1).Contiguous()
+		wo := getParam(m, fmt.Sprintf("layers.%d.attention.wo.weight", i)).Transpose(0, 1).Contiguous()
 		norm1 := getParam(m, fmt.Sprintf("layers.%d.attention_norm.weight", i))
-		w1 := getParam(m, fmt.Sprintf("layers.%d.feed_forward.w1.weight", i)).Transpose(0, 1)
-		w2 := getParam(m, fmt.Sprintf("layers.%d.feed_forward.w2.weight", i)).Transpose(0, 1)
-		w3 := getParam(m, fmt.Sprintf("layers.%d.feed_forward.w3.weight", i)).Transpose(0, 1)
+		w1 := getParam(m, fmt.Sprintf("layers.%d.feed_forward.w1.weight", i)).Transpose(0, 1).Contiguous()
+		w2 := getParam(m, fmt.Sprintf("layers.%d.feed_forward.w2.weight", i)).Transpose(0, 1).Contiguous()
+		w3 := getParam(m, fmt.Sprintf("layers.%d.feed_forward.w3.weight", i)).Transpose(0, 1).Contiguous()
 		norm2 := getParam(m, fmt.Sprintf("layers.%d.ffn_norm.weight", i))
 
 		var block block
@@ -51,7 +53,7 @@ func LoadFromTorch(m *gmodel.Model, params *Params) *Model {
 		md.blocks = append(md.blocks, &block)
 	}
 	md.norm = ilayer.NewRMSNorm(getParam(m, "norm.weight"), eps)
-	md.output = ilayer.NewLinear(getParam(m, "output.weight").Transpose(0, 1))
+	md.output = ilayer.NewLinear(getParam(m, "output.weight").Transpose(0, 1).Contiguous())
 	params.Vocabs = int(getParam(m, "output.weight").Shapes()[0])
 	return &md
 }
@@ -63,6 +65,8 @@ func LoadFromTNN(dir string, params *Params) *Model {
 	layers := net.Layers()
 
 	var md Model
+	md.prepareFreqs(params.Dim/params.Heads, 2048*2)
+
 	var idx int
 	md.embedding = layers[idx].(*ilayer.Embedding)
 	idx++
@@ -84,13 +88,46 @@ func LoadFromTNN(dir string, params *Params) *Model {
 	return &md
 }
 
-func (m *Model) Forward(x *tensor.Tensor) *tensor.Tensor {
-	x = m.embedding.Forward(x)
-	for _, block := range m.blocks {
-		x = block.forward(x)
+func (m *Model) prepareFreqs(dim, end int64) {
+	const theta = 10000.
+	freqs := make([]float32, dim/2)
+	for i := 0; i < len(freqs); i++ {
+		freqs[i] = 1 / float32(math.Pow(theta, float64(i*2)/float64(dim)))
 	}
-	x = m.norm.Forward(x)
-	return m.output.Forward(x)
+	f := tensor.FromFloat32(nil, freqs, tensor.WithShapes(dim/2))
+	ts := make([]float32, end)
+	for i := int64(0); i < end; i++ {
+		ts[i] = float32(i)
+	}
+	t := tensor.FromFloat32(nil, ts, tensor.WithShapes(end))
+	freq := tensor.Outer(t, f)
+	m.freqs = tensor.Polar(ones(freq.Shapes()), freq)
+}
+
+func ones(shapes []int64) *tensor.Tensor {
+	size := shapes[0]
+	for i := 1; i < len(shapes); i++ {
+		size *= shapes[i]
+	}
+	data := make([]float32, size)
+	for i := 0; i < len(data); i++ {
+		data[i] = 1
+	}
+	return tensor.FromFloat32(nil, data, tensor.WithShapes(shapes...))
+}
+
+func (m *Model) Forward(x *tensor.Tensor) *tensor.Tensor {
+	seqlen := x.Shapes()[1]
+	h := m.embedding.Forward(x)
+	// fmt.Println(h.NArrow(1, 0, 1).NArrow(2, 0, 16).BFloat16Value())
+	// fmt.Println(h.NArrow(1, 1, 1).NArrow(2, 0, 16).BFloat16Value())
+	// fmt.Println(h.NArrow(1, 2, 1).NArrow(2, 0, 16).BFloat16Value())
+	for _, block := range m.blocks {
+		h = block.forward(h, m.freqs.NArrow(0, 0, seqlen))
+	}
+	h = m.norm.Forward(h)
+	output := m.output.Forward(h)
+	return output
 }
 
 func (m *Model) ToScalarType(t consts.ScalarType) *Model {

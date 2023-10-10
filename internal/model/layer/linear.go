@@ -1,6 +1,8 @@
 package layer
 
 import (
+	"llama2/internal/model/parallel"
+
 	"github.com/lwch/gotorch/consts"
 	"github.com/lwch/gotorch/tensor"
 	"github.com/lwch/tnn/nn/layer"
@@ -21,7 +23,7 @@ func NewLinear(w *tensor.Tensor) *Linear {
 }
 
 func (l *Linear) Forward(x *tensor.Tensor) *tensor.Tensor {
-	return x.MatMul(l.w)
+	return parallel.MatMul(x, l.w)
 }
 
 func init() {

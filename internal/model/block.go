@@ -14,11 +14,10 @@ type block struct {
 	ffnNorm  *layer.RMSNorm
 }
 
-func (b *block) forward(x *tensor.Tensor) *tensor.Tensor {
-	x = b.attn.Forward(x)
-	x = b.attnNorm.Forward(x)
-	x = b.ffn.forward(x)
-	return b.ffnNorm.Forward(x)
+func (b *block) forward(x, freqs *tensor.Tensor) *tensor.Tensor {
+	h := x.Add(b.attn.Forward(b.attnNorm.Forward(x), freqs))
+	out := h.Add(b.ffn.forward(b.ffnNorm.Forward(h)))
+	return out
 }
 
 func (b *block) toScalarType(t consts.ScalarType) *block {
