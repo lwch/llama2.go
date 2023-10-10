@@ -4,13 +4,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	imodel "llama2/internal/model"
+	"llama2/internal/model"
+	"llama2/internal/model/checkpoint"
 	"os"
 	"path/filepath"
 
-	"github.com/lwch/gotorch/consts"
-	"github.com/lwch/gotorch/mmgr"
-	"github.com/lwch/gotorch/model"
 	"github.com/lwch/logging"
 	"github.com/lwch/runtime"
 	"github.com/spf13/cobra"
@@ -21,20 +19,17 @@ var ModelName string
 var OutputDir string
 
 func Convert(*cobra.Command, []string) {
-	s := mmgr.New()
-	defer s.GC()
-
 	dir := filepath.Join(ModelDir, ModelName, "params.json")
 	logging.Info("loading params from %s...", dir)
-	params := imodel.LoadParam(dir)
+	params := model.LoadParam(dir)
 
 	dir = filepath.Join(ModelDir, ModelName, "consolidated.00.pth")
-	logging.Info("loading model from %s...", dir)
-	m, err := model.Load(dir, s)
+	logging.Info("loading checkpoint from %s...", dir)
+	ckpt, err := checkpoint.Load(dir)
 	runtime.Assert(err)
-	logging.Info("model loaded")
+	logging.Info("checkpoint loaded")
 
-	md := imodel.LoadFromTorch(m, params)
+	md := model.LoadFromCheckpoint(ckpt, params)
 	data, _ := json.MarshalIndent(params, "", "  ")
 	fmt.Println("params:")
 	fmt.Println(string(data))
@@ -42,7 +37,7 @@ func Convert(*cobra.Command, []string) {
 	os.MkdirAll(OutputDir, 0755)
 	dir = filepath.Join(OutputDir, "llama2.model")
 	logging.Info("saving model to %s...", dir)
-	md.ToScalarType(consts.KBFloat16).Save(dir) // TODO: quantize
+	md.Save(dir) // TODO: quantize
 	logging.Info("model saved")
 
 	dir = filepath.Join(OutputDir, "params.json")

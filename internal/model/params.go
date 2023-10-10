@@ -13,7 +13,7 @@ type Params struct {
 	Heads      int64   `json:"n_heads"`
 	Layers     int     `json:"n_layers"`
 	Eps        float32 `json:"norm_eps"`
-	Vocabs     int     `json:"vocab_size"`
+	Vocabs     int64   `json:"vocab_size"`
 }
 
 func LoadParam(dir string) *Params {
