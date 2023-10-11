@@ -25,7 +25,7 @@ func TextCompletion(*cobra.Command, []string) {
 
 	embedding, err := md.LookupEmbedding(tks)
 	runtime.Assert(err)
-	md.Forward(embedding, len(tks))
+	md.Forward(embedding, int64(len(tks)))
 
 	// s := mmgr.New()
 	// defer s.GC()

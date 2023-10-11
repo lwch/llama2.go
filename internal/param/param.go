@@ -1,4 +1,4 @@
-package tensor
+package param
 
 import (
 	"archive/zip"

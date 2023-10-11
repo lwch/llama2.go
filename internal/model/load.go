@@ -1,14 +1,14 @@
 package model
 
 import (
-	"archive/zip"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"llama2/internal/tensor"
+	"llama2/internal/param"
 	"os"
 	"path/filepath"
 
+	"github.com/klauspost/compress/zip"
 	"github.com/lwch/runtime"
 	"github.com/lwch/sentencepiece"
 )
@@ -49,7 +49,7 @@ func Load(dir string) *Model {
 	md.ffnW3 = nil
 	md.ffnNorm = nil
 	for i := 0; i < params.Layers; i++ {
-		loadLayerParam := func(name string) tensor.Param {
+		loadLayerParam := func(name string) param.Param {
 			key := fmt.Sprintf("layers_%d_%s", i, name)
 			info, ok := params.Params[key]
 			if !ok {
@@ -82,15 +82,15 @@ func loadParams(zr *zip.Reader) *Params {
 	return &ret
 }
 
-func loadParam(modelDir string, zr *zip.Reader, name string, info ParamInfo) tensor.Param {
+func loadParam(modelDir string, zr *zip.Reader, name string, info ParamInfo) param.Param {
 	name = filepath.Join("params", name)
 	f, err := zr.Open(name)
 	runtime.Assert(err)
 	defer f.Close()
 	switch info.Type {
-	case tensor.TypeBF16:
-		return tensor.NewBF16(modelDir, name, info.Shape)
-	default: // TODO: load quantized tensor
+	case param.TypeBF16:
+		return param.NewBF16(modelDir, name, info.Shape)
+	default: // TODO: load quantized param
 		return nil
 	}
 }

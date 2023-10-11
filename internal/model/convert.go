@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"io"
 	"llama2/internal/model/checkpoint"
-	"llama2/internal/tensor"
+	"llama2/internal/param"
 	"os"
 	"path/filepath"
 
@@ -106,7 +106,7 @@ func writeParam(zw *zip.Writer, p checkpoint.Storage, name string, transpose boo
 	runtime.Assert(err)
 	runtime.Assert(binary.Write(w, binary.LittleEndian, data))
 	return ParamInfo{
-		Type:  tensor.TypeBF16,
+		Type:  param.TypeBF16,
 		Shape: shapes,
 	}
 }

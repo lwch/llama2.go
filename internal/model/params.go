@@ -2,19 +2,19 @@ package model
 
 import (
 	"encoding/json"
-	"llama2/internal/tensor"
+	"llama2/internal/param"
 	"os"
 
 	"github.com/lwch/runtime"
 )
 
 type ParamInfo struct {
-	Type  tensor.Type `json:"type"`
-	Shape []int64     `json:"shape"`
+	Type  param.Type `json:"type"`
+	Shape []int64    `json:"shape"`
 }
 
 type Params struct {
-	Dim        int                  `json:"dim"`
+	Dim        int64                `json:"dim"`
 	MultipleOf int                  `json:"multiple_of"`
 	Heads      int                  `json:"n_heads"`
 	Layers     int                  `json:"n_layers"`

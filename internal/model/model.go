@@ -1,26 +1,26 @@
 package model
 
 import (
-	"llama2/internal/tensor"
+	"llama2/internal/param"
 
 	"github.com/lwch/logging"
 	"github.com/lwch/sentencepiece"
 )
 
 type Model struct {
-	embeddingWeight tensor.Param
-	attentionWQ     []tensor.Param
-	attentionWK     []tensor.Param
-	attentionWV     []tensor.Param
-	attentionWO     []tensor.Param
-	attentionNorm   []tensor.Param
-	ffnW1           []tensor.Param
-	ffnW2           []tensor.Param
-	ffnW3           []tensor.Param
-	ffnNorm         []tensor.Param
-	norm            tensor.Param
-	output          tensor.Param
-	embeddingDim    int
+	embeddingWeight param.Param
+	attentionWQ     []param.Param
+	attentionWK     []param.Param
+	attentionWV     []param.Param
+	attentionWO     []param.Param
+	attentionNorm   []param.Param
+	ffnW1           []param.Param
+	ffnW2           []param.Param
+	ffnW3           []param.Param
+	ffnNorm         []param.Param
+	norm            param.Param
+	output          param.Param
+	embeddingDim    int64
 	layers          int
 	heads           int
 	eps             float32
