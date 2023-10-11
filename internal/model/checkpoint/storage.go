@@ -2,7 +2,8 @@ package checkpoint
 
 import (
 	"archive/zip"
-	"sync"
+	"encoding/binary"
+	"os"
 )
 
 type storageType byte
@@ -19,19 +20,28 @@ const (
 	typeLong                        // torch.long, torch.int64
 )
 
-type storage interface {
-	New(wg *sync.WaitGroup, size int, file *zip.File) (storage, error)
+type Storage interface {
+	New(ckptDir, fileName string, dataSize int) Storage
 	SetShape(shape []int64)
 	GetShape() []int64
 	SetRequiresGrad(requiresGrad bool)
 	GetRequiresGrad() bool
 	Type() storageType
-	Get() interface{}
+	Load() (any, error)
 }
 
 type base struct {
+	ckptDir      string
+	fileName     string
+	dataSize     int
 	shape        []int64
 	requiresGrad bool
+}
+
+func (b *base) init(ckptDir, fileName string, dataSize int) {
+	b.ckptDir = ckptDir
+	b.fileName = fileName
+	b.dataSize = dataSize
 }
 
 func (b *base) SetShape(shape []int64) {
@@ -48,4 +58,33 @@ func (b *base) SetRequiresGrad(requiresGrad bool) {
 
 func (b *base) GetRequiresGrad() bool {
 	return b.requiresGrad
+}
+
+func (b *base) load(data any) error {
+	f, err := os.Open(b.ckptDir)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	fi, err := f.Stat()
+	if err != nil {
+		return err
+	}
+	zr, err := zip.NewReader(f, fi.Size())
+	if err != nil {
+		return err
+	}
+	fs, err := zr.Open(b.fileName)
+	if err != nil {
+		return err
+	}
+	defer fs.Close()
+	switch dt := data.(type) {
+	case []uint16:
+		err = binary.Read(fs, binary.LittleEndian, dt)
+	}
+	if err != nil {
+		return err
+	}
+	return nil
 }

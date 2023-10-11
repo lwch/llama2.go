@@ -1,5 +1,11 @@
 package tensor
 
+type Type byte
+
+const (
+	TypeBF16 Type = iota
+)
+
 type Tensor interface {
 	Shapes() []int64
 	Dims() int

@@ -32,7 +32,7 @@ var textCompletionCmd = &cobra.Command{
 func main() {
 	convertCmd.Flags().StringVar(&internal.ModelDir, "model", "", "model directory")
 	convertCmd.Flags().StringVar(&internal.ModelName, "name", "", "model name, like llama-2-7b")
-	convertCmd.Flags().StringVar(&internal.OutputDir, "output", "./models", "output directory")
+	convertCmd.Flags().StringVar(&internal.OutputDir, "output", "./llama2.model", "output directory")
 	runtime.Assert(convertCmd.MarkFlagRequired("model"))
 	//runtime.Assert(convertCmd.MarkFlagRequired("name"))
 	rootCmd.AddCommand(convertCmd)

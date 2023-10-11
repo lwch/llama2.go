@@ -1,40 +1,21 @@
 package checkpoint
 
-import (
-	"archive/zip"
-	"encoding/binary"
-	"fmt"
-	"sync"
-)
-
 type bfloat16 struct {
 	base
-	data []uint16
 }
 
-var _ storage = &bfloat16{}
+var bf16Instance Storage = &bfloat16{}
 
-func (*bfloat16) New(wg *sync.WaitGroup, size int, file *zip.File) (storage, error) {
-	fs, err := file.Open()
-	if err != nil {
-		return nil, fmt.Errorf("BFloat16.New: can not open file %s: %v", file.Name, err)
-	}
-	defer fs.Close()
+func (*bfloat16) New(ckptDir, fileName string, dataSize int) Storage {
 	var ret bfloat16
-	ret.data = make([]uint16, size)
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		err = binary.Read(fs, binary.LittleEndian, ret.data)
-		if err != nil {
-			panic(fmt.Errorf("BFloat16.New: can not read file %s: %v", file.Name, err))
-		}
-	}()
-	return &ret, nil
+	ret.init(ckptDir, fileName, dataSize)
+	return &ret
 }
 
-func (f *bfloat16) Get() interface{} {
-	return f.data
+func (f *bfloat16) Load() (any, error) {
+	data := make([]uint16, f.dataSize)
+	err := f.load(data)
+	return data, err
 }
 
 func (*bfloat16) Type() storageType {

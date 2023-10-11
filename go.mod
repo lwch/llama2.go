@@ -4,7 +4,6 @@ go 1.20
 
 require (
 	github.com/klauspost/compress v1.17.0
-	github.com/lwch/gotorch v1.6.3
 	github.com/lwch/logging v1.0.1
 	github.com/lwch/runtime v1.0.1
 	github.com/nlpodyssey/gopickle v0.2.0

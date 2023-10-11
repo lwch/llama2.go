@@ -1,8 +1,6 @@
 package internal
 
 import (
-	"github.com/lwch/gotorch/mmgr"
-	"github.com/lwch/gotorch/tensor"
 	"github.com/spf13/cobra"
 )
 
@@ -48,14 +46,14 @@ func TextCompletion(*cobra.Command, []string) {
 	// }
 }
 
-func buildInput(s *mmgr.Storage, tks []uint64) *tensor.Tensor {
-	data := make([]int64, len(tks))
-	for i, v := range tks {
-		data[i] = int64(v)
-	}
-	return tensor.FromInt64(s, data,
-		tensor.WithShapes(1, int64(len(tks))))
-}
+// func buildInput(s *mmgr.Storage, tks []uint64) *tensor.Tensor {
+// 	data := make([]int64, len(tks))
+// 	for i, v := range tks {
+// 		data[i] = int64(v)
+// 	}
+// 	return tensor.FromInt64(s, data,
+// 		tensor.WithShapes(1, int64(len(tks))))
+// }
 
 func getLabel(data []float32) uint64 {
 	var idx uint64

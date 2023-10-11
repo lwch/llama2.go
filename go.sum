@@ -6,8 +6,6 @@ github.com/inconshreveable/mousetrap v1.1.0 h1:wN+x4NVGpMsO7ErUn/mUI3vEoE6Jt13X2
 github.com/inconshreveable/mousetrap v1.1.0/go.mod h1:vpF70FUmC8bwa3OWnCshd2FqLfsEA9PFc4w1p2J65bw=
 github.com/klauspost/compress v1.17.0 h1:Rnbp4K9EjcDuVuHtd0dgA4qNuv9yKDYKK1ulpJwgrqM=
 github.com/klauspost/compress v1.17.0/go.mod h1:ntbaceVETuRiXiv4DpjP66DpAtAGkEQskQzEyD//IeE=
-github.com/lwch/gotorch v1.6.3 h1:u/nbyPSgTAQc4fEEe+zwUvfU7LfXLRSL9LKGG+s9awQ=
-github.com/lwch/gotorch v1.6.3/go.mod h1:CPNgHULlgMUuLTkXxr7uRqwxWexJ75tMph3evfx/ZDI=
 github.com/lwch/logging v1.0.1 h1:5v3XR5jaad/yuJsaC7OY8BfhHGHLT/pscc3iAVQTaKk=
 github.com/lwch/logging v1.0.1/go.mod h1:hiA9neZf+38gqBOAselhBL3NRz00+dr8d6vrHh8BJ88=
 github.com/lwch/runtime v1.0.0/go.mod h1:D9d6Uzg9Nea3M+bkNyLHNk6Nhlz/j1c4mze1gG0tReI=

@@ -17,7 +17,7 @@ func (r *rebuildTensorV2) Call(args ...interface{}) (interface{}, error) {
 		return nil, fmt.Errorf("RebuildTensorV2 unexpected args: %#v", args)
 	}
 
-	storage, storageOk := args[0].(storage)
+	storage, storageOk := args[0].(Storage)
 	size, sizeOk := args[2].(*types.Tuple)
 	requiresGrad, requiresGradOk := args[4].(bool)
 	if !storageOk || !sizeOk || !requiresGradOk {

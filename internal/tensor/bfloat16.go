@@ -10,6 +10,13 @@ var _ Tensor = &BFloat16{}
 func NewBFloat16(shapes []int64, data []uint16) *BFloat16 {
 	var ret BFloat16
 	ret.shapes = shapes
+	ret.data = data
+	return &ret
+}
+
+func NewBFloat16Dup(shapes []int64, data []uint16) *BFloat16 {
+	var ret BFloat16
+	ret.shapes = dup(shapes)
 	ret.data = dup(data)
 	return &ret
 }

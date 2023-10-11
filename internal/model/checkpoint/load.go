@@ -17,10 +17,11 @@ import (
 type findClassFunc func(module, name string) (interface{}, error)
 
 type Model struct {
+	ckptDir  string
 	wg       sync.WaitGroup
-	storages map[string]storage
+	storages map[string]Storage
 	files    map[string]*zip.File
-	params   map[string]storage
+	params   map[string]Storage
 }
 
 func Load(dir string) (*Model, error) {
@@ -44,7 +45,8 @@ func Load(dir string) (*Model, error) {
 	defer data.Close()
 	pkl := pickle.NewUnpickler(data)
 	var m Model
-	m.storages = make(map[string]storage)
+	m.ckptDir = dir
+	m.storages = make(map[string]Storage)
 	m.files = files(zr)
 	pkl.FindClass = m.buildFindClass(pkl.FindClass)
 	pkl.PersistentLoad = m.persistentLoad
@@ -84,7 +86,7 @@ func (m *Model) buildFindClass(cb findClassFunc) findClassFunc {
 		case "torch._utils._rebuild_tensor_v2":
 			return &rebuildTensorV2{}, nil
 		case "torch.BFloat16Storage": // bfloat16
-			return &bfloat16{}, nil
+			return bf16Instance, nil
 		default:
 			if cb == nil {
 				return nil, fmt.Errorf("class not found: %s %s", module, name)
@@ -109,7 +111,7 @@ func (m *Model) persistentLoad(id interface{}) (interface{}, error) {
 	if tuple.Len() < 5 {
 		return nil, fmt.Errorf("PersistentLoad: unexpected storage data length")
 	}
-	storageType, storageTypeOk := tuple.Get(1).(storage)
+	storageType, storageTypeOk := tuple.Get(1).(Storage)
 	key, keyOk := tuple.Get(2).(string)
 	size, sizeOk := tuple.Get(4).(int)
 	if !storageTypeOk || !keyOk || !sizeOk {
@@ -122,11 +124,7 @@ func (m *Model) persistentLoad(id interface{}) (interface{}, error) {
 		if !ok {
 			return nil, fmt.Errorf("PersistentLoad: file not found: %s", key)
 		}
-		var err error
-		storage, err = storageType.New(&m.wg, size, file)
-		if err != nil {
-			return nil, err
-		}
+		storage = storageType.New(m.ckptDir, file.Name, size)
 		m.storages[key] = storage
 	}
 	return storage, nil
@@ -145,10 +143,10 @@ func (m *Model) loadParams(params interface{}) error {
 
 func (m *Model) loadParamsOrderedDict(params interface{}) error {
 	dict := params.(*types.OrderedDict)
-	m.params = make(map[string]storage)
+	m.params = make(map[string]Storage)
 	for _, entry := range dict.Map {
 		key, keyOk := entry.Key.(string)
-		value, valueOk := entry.Value.(storage)
+		value, valueOk := entry.Value.(Storage)
 		if !keyOk || !valueOk {
 			return fmt.Errorf("loadParamsOrderedDict: unexpected data types, key: %#v, value: %#v", keyOk, valueOk)
 		}
@@ -159,10 +157,10 @@ func (m *Model) loadParamsOrderedDict(params interface{}) error {
 
 func (m *Model) loadParamsDict(params interface{}) error {
 	dict := params.(*types.Dict)
-	m.params = make(map[string]storage)
+	m.params = make(map[string]Storage)
 	for _, entry := range *dict {
 		key, keyOk := entry.Key.(string)
-		value, valueOk := entry.Value.(storage)
+		value, valueOk := entry.Value.(Storage)
 		if !keyOk || !valueOk {
 			return fmt.Errorf("loadParamsDict: unexpected data types, key: %#v, value: %#v", keyOk, valueOk)
 		}
@@ -171,6 +169,6 @@ func (m *Model) loadParamsDict(params interface{}) error {
 	return nil
 }
 
-func (m *Model) Params() map[string]storage {
+func (m *Model) Params() map[string]Storage {
 	return m.params
 }
