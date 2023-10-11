@@ -1,10 +1,32 @@
 package internal
 
 import (
+	"bytes"
+	"io"
+	"llama2/internal/model"
+	"os"
+
+	"github.com/lwch/logging"
+	"github.com/lwch/runtime"
 	"github.com/spf13/cobra"
 )
 
 func TextCompletion(*cobra.Command, []string) {
+	md := model.Load(ModelDir)
+	logging.Info("model loaded")
+	md.ShowInfo()
+
+	tk := md.GetTokenizer()
+
+	input, err := io.ReadAll(os.Stdin)
+	runtime.Assert(err)
+	input = bytes.TrimSpace(input)
+	tks := tk.Encode(string(input), true, false)
+
+	embedding, err := md.LookupEmbedding(tks)
+	runtime.Assert(err)
+	md.Forward(embedding, len(tks))
+
 	// s := mmgr.New()
 	// defer s.GC()
 
