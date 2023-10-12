@@ -34,8 +34,9 @@ func TextCompletion(*cobra.Command, []string) {
 		scores, err := md.Forward(ctx, token, int64(i))
 		runtime.Assert(err)
 		nextToken = getLabel(scores)
-		str := tk.Decode([]uint64{token, nextToken})
-		fmt.Println(time.Since(begin), str)
+		prompt := tk.Decode([]uint64{token})
+		got := tk.Decode([]uint64{nextToken})
+		fmt.Println(time.Since(begin), prompt, got)
 	}
 
 	for {
