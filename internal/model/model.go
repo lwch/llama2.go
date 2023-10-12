@@ -22,7 +22,7 @@ type Model struct {
 	output          param.Param
 	embeddingDim    int64
 	layers          int
-	heads           int
+	heads           int64
 	eps             float32
 	tk              *sentencepiece.Model
 }

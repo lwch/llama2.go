@@ -16,7 +16,7 @@ type Param interface {
 	Shapes() []int64
 	ElemCount() int64
 	Dims() int64
-	Load() ([]float32, error)
+	Load(cache bool) ([]float32, error)
 	LoadBatch(uint64) ([]float32, error)
 }
 

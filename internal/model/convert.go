@@ -90,13 +90,15 @@ func writeParam(zw *zip.Writer, p checkpoint.Storage, name string, transpose boo
 		if len(shapes) != 2 {
 			panic("len(shapes)!=2")
 		}
-		rows, cols := shapes[0], shapes[1]
+		cols, rows := shapes[0], shapes[1]
+		t := make([]uint16, rows*cols)
 		for i := int64(0); i < rows; i++ {
 			for j := int64(0); j < cols; j++ {
-				data[i*cols+j], data[j*rows+i] = data[j*rows+i], data[i*cols+j]
+				t[i*cols+j] = data[j*rows+i]
 			}
 		}
-		shapes[0], shapes[1] = cols, rows
+		data = t
+		shapes[0], shapes[1] = shapes[1], shapes[0]
 		logging.Info("  => param %s transpose shape to %v", name, shapes)
 	}
 	w, err := zw.CreateHeader(&zip.FileHeader{

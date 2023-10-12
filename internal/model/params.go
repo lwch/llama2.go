@@ -16,7 +16,7 @@ type ParamInfo struct {
 type Params struct {
 	Dim        int64                `json:"dim"`
 	MultipleOf int                  `json:"multiple_of"`
-	Heads      int                  `json:"n_heads"`
+	Heads      int64                `json:"n_heads"`
 	Layers     int                  `json:"n_layers"`
 	Eps        float32              `json:"norm_eps"`
 	Vocabs     int64                `json:"vocab_size"`
