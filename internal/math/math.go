@@ -1,12 +1,12 @@
-package model
+package math
 
 import (
 	"math"
 	"sync"
 )
 
-// matMul (m, d) @ (d, n) => (m, n)
-func matMul(x, w []float32, m, n, d int64, output []float32) {
+// MatMul (m, d) @ (d, n) => (m, n)
+func MatMul(x, w []float32, m, n, d int64, output []float32) {
 	if m > n {
 		rowParallelMatMul(x, w, m, n, d, output)
 	} else {
@@ -50,7 +50,7 @@ func colParallelMatMul(x, w []float32, m, n, d int64, output []float32) {
 	wg.Wait()
 }
 
-func rmsnorm(x, w []float32, output []float32, eps float32) {
+func RMSNorm(x, w []float32, output []float32, eps float32) {
 	var scale float32
 	for i := 0; i < len(x); i++ {
 		scale += x[i] * x[i]
@@ -69,7 +69,7 @@ func rmsnorm(x, w []float32, output []float32, eps float32) {
 	wg.Wait()
 }
 
-func softmax(x []float32, n int64) {
+func Softmax(x []float32, n int64) {
 	max := x[0]
 	for i := int64(0); i < n; i++ {
 		if x[i] > max {
@@ -86,23 +86,23 @@ func softmax(x []float32, n int64) {
 	}
 }
 
-func silu(x []float32) {
+func SiLU(x []float32) {
 	var wg sync.WaitGroup
 	wg.Add(len(x))
 	for i := range x {
 		go func(i int) {
 			defer wg.Done()
-			x[i] = x[i] * sigmoid(x[i])
+			x[i] = x[i] * Sigmoid(x[i])
 		}(i)
 	}
 	wg.Wait()
 }
 
-func sigmoid(x float32) float32 {
+func Sigmoid(x float32) float32 {
 	return 1 / (1 + float32(math.Exp(float64(-x))))
 }
 
-func mul(x, w []float32, output []float32) {
+func Mul(x, w []float32, output []float32) {
 	var wg sync.WaitGroup
 	wg.Add(len(x))
 	for i, v := range x {
@@ -114,8 +114,8 @@ func mul(x, w []float32, output []float32) {
 	wg.Wait()
 }
 
-// code from https://github.com/karpathy/llama2.c/blob/master/run.c#L265
-func rope(q, k []float32, cursor, headSize int64) {
+// ROPE code from https://github.com/karpathy/llama2.c/blob/master/run.c#L265
+func ROPE(q, k []float32, cursor, headSize int64) {
 	for i := int64(0); i < int64(len(q)); i += 2 {
 		headDim := i % headSize
 		freq := 1 / math.Pow(10000, float64(headDim)/float64(headSize))

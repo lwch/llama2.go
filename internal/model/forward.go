@@ -2,7 +2,8 @@ package model
 
 import (
 	"fmt"
-	"math"
+	"llama2/internal/math"
+	math2 "math"
 	"sync"
 )
 
@@ -49,18 +50,15 @@ func (m *Model) Forward(ctx *Context, tk uint64, cursor int64) ([]float32, error
 
 	// rmsnorm
 	y := make([]float32, m.embeddingDim) // (1, dim)
-	rmsnorm(x, norm, y, m.eps)           // (1, dim)
+	math.RMSNorm(x, norm, y, m.eps)      // (1, dim)
 
 	vocabSize := m.output.Shapes()[1]
 
 	// y @ output
 	// (1, dim) @ (dim, vocab_size) => (1, vocab_size)
-	z := make([]float32, vocabSize)                    // (1, vocab_size)
-	matMul(y, output, 1, vocabSize, m.embeddingDim, z) // (1, vocab_size)
+	z := make([]float32, vocabSize)                         // (1, vocab_size)
+	math.MatMul(y, output, 1, vocabSize, m.embeddingDim, z) // (1, vocab_size)
 
-	// softmax
-	// (1, vocab_size)
-	softmax(z, vocabSize)
 	return z, nil
 }
 
@@ -91,15 +89,15 @@ func (m *Model) attention(ctx *Context, layer int, x []float32, cursor int64) ([
 	}
 
 	dx := make([]float32, m.embeddingDim) // (1, dim)
-	rmsnorm(x, norm, dx, m.eps)           // (1, dim)
+	math.RMSNorm(x, norm, dx, m.eps)      // (1, dim)
 
 	// compute q, k, v vector
-	matMul(dx, wq, 1, m.embeddingDim, m.embeddingDim, attnQ) // (1, dim)
-	matMul(dx, wk, 1, m.embeddingDim, m.embeddingDim, attnK) // (1, dim)
-	matMul(dx, wv, 1, m.embeddingDim, m.embeddingDim, attnV) // (1, dim)
+	math.MatMul(dx, wq, 1, m.embeddingDim, m.embeddingDim, attnQ) // (1, dim)
+	math.MatMul(dx, wk, 1, m.embeddingDim, m.embeddingDim, attnK) // (1, dim)
+	math.MatMul(dx, wv, 1, m.embeddingDim, m.embeddingDim, attnV) // (1, dim)
 	clear(dx)
 
-	rope(attnQ, attnK, cursor, ctx.headSize)
+	math.ROPE(attnQ, attnK, cursor, ctx.headSize)
 
 	// append cache
 	attnK = append(ctx.cacheK[layer], attnK...) // (seqlen, dim)
@@ -108,7 +106,7 @@ func (m *Model) attention(ctx *Context, layer int, x []float32, cursor int64) ([
 	ctx.cacheV[layer] = attnV
 
 	// attention
-	scale := math.Sqrt(float64(ctx.headSize))
+	scale := math2.Sqrt(float64(ctx.headSize))
 	var wgHeads sync.WaitGroup
 	wgHeads.Add(int(m.heads))
 	for head := int64(0); head < m.heads; head++ {
@@ -126,7 +124,7 @@ func (m *Model) attention(ctx *Context, layer int, x []float32, cursor int64) ([
 					defer wg.Done()
 					idx := cursor * m.embeddingDim
 					k := attnK[idx+head*ctx.headSize : idx+(head+1)*ctx.headSize] // (head_size, 1)
-					matMul(q, k, 1, 1, ctx.headSize, score[cursor:cursor+1])      // (1, head_size) @ (head_size, 1) => (1)
+					math.MatMul(q, k, 1, 1, ctx.headSize, score[cursor:cursor+1]) // (1, head_size) @ (head_size, 1) => (1)
 					score[cursor] /= float32(scale)
 				}(cursor)
 			}
@@ -134,7 +132,7 @@ func (m *Model) attention(ctx *Context, layer int, x []float32, cursor int64) ([
 
 			// softmax
 			// (seqlen)
-			softmax(score, seqlen)
+			math.Softmax(score, seqlen)
 
 			// score @ v
 			// (seqlen) @ (seqlen, head_size) => (head_size)
@@ -155,8 +153,8 @@ func (m *Model) attention(ctx *Context, layer int, x []float32, cursor int64) ([
 
 	// dx @ wo
 	// (1, dim) @ (dim, dim) => (1, dim)
-	y := make([]float32, m.embeddingDim)                 // (1, dim)
-	matMul(dx, wo, 1, m.embeddingDim, m.embeddingDim, y) // (1, dim)
+	y := make([]float32, m.embeddingDim)                      // (1, dim)
+	math.MatMul(dx, wo, 1, m.embeddingDim, m.embeddingDim, y) // (1, dim)
 
 	// residual connection
 	for i := range x {
@@ -190,31 +188,31 @@ func (m *Model) feedForward(ctx *Context, x []float32, layer int) ([]float32, er
 	dim2 := m.ffnW1[layer].Shapes()[1]
 
 	dx := make([]float32, m.embeddingDim) // (1, dim)
-	rmsnorm(x, norm, dx, m.eps)           // (1, dim)
+	math.RMSNorm(x, norm, dx, m.eps)      // (1, dim)
 
 	// dx @ w1
 	// (1, dim) @ (dim, dim2) => (1, dim2)
-	y1 := make([]float32, dim2)                 // (1, dim2)
-	matMul(dx, w1, 1, dim2, m.embeddingDim, y1) // (1, dim2)
+	y1 := make([]float32, dim2)                      // (1, dim2)
+	math.MatMul(dx, w1, 1, dim2, m.embeddingDim, y1) // (1, dim2)
 
 	// dx @ w3
 	// (1, dim) @ (dim, dim2) => (1, dim2)
-	y2 := make([]float32, dim2)                 // (1, dim2)
-	matMul(dx, w3, 1, dim2, m.embeddingDim, y2) // (1, dim2)
+	y2 := make([]float32, dim2)                      // (1, dim2)
+	math.MatMul(dx, w3, 1, dim2, m.embeddingDim, y2) // (1, dim2)
 
 	// silu for y1
 	// (1, dim2)
-	silu(y1) // (1, dim2)
+	math.SiLU(y1) // (1, dim2)
 
 	// y1 * y2
 	// (1, dim2) * (1, dim2) => (1, dim2)
 	y := make([]float32, dim2) // (1, dim2)
-	mul(y1, y2, y)             // (1, dim2)
+	math.Mul(y1, y2, y)        // (1, dim2)
 
 	// y @ w2
 	// (1, dim2) @ (dim2, dim) => (1, dim)
 	clear(dx)
-	matMul(y, w2, 1, m.embeddingDim, dim2, dx) // (1, dim)
+	math.MatMul(y, w2, 1, m.embeddingDim, dim2, dx) // (1, dim)
 
 	// residual connection
 	for i := range x {

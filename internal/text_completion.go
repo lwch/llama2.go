@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"llama2/internal/model"
+	"llama2/internal/sampler"
 	"os"
 	"time"
 
@@ -15,6 +16,8 @@ import (
 
 var CacheParam bool
 var MaxInferenceLength int
+var Temperature float32
+var TopP float32
 
 func TextCompletion(*cobra.Command, []string) {
 	md := model.Load(ModelDir)
@@ -28,6 +31,8 @@ func TextCompletion(*cobra.Command, []string) {
 	input = bytes.TrimSpace(input)
 	tks := tk.Encode(string(input), true, false)
 
+	samp := sampler.New(Temperature, TopP)
+
 	ctx := md.NewContext(CacheParam)
 	var cursor int64
 	var nextToken uint64
@@ -36,7 +41,7 @@ func TextCompletion(*cobra.Command, []string) {
 		scores, err := md.Forward(ctx, token, cursor)
 		cost := time.Since(begin)
 		runtime.Assert(err)
-		nextToken = getLabel(scores)
+		nextToken = samp.Sample(scores)
 		prompt := tk.Decode([]uint64{token})
 		if token == uint64(tk.Bos()) {
 			prompt = "<s>"
@@ -51,7 +56,7 @@ func TextCompletion(*cobra.Command, []string) {
 		scores, err := md.Forward(ctx, nextToken, cursor)
 		cost := time.Since(begin)
 		runtime.Assert(err)
-		nextToken = getLabel(scores)
+		nextToken = samp.Sample(scores)
 		inference := tk.Decode([]uint64{nextToken})
 		if nextToken == uint64(tk.Eos()) {
 			inference = "</s>"
@@ -62,16 +67,4 @@ func TextCompletion(*cobra.Command, []string) {
 			break
 		}
 	}
-}
-
-func getLabel(data []float32) uint64 {
-	var idx uint64
-	var max float32
-	for i, v := range data {
-		if v > max {
-			max = v
-			idx = uint64(i)
-		}
-	}
-	return idx
 }
