@@ -7,6 +7,7 @@ import (
 	"llama2/internal/param"
 	"os"
 	"path/filepath"
+	"sync"
 
 	"github.com/klauspost/compress/zip"
 	"github.com/lwch/runtime"
@@ -102,4 +103,46 @@ func loadTokenizer(zr *zip.Reader) *sentencepiece.Model {
 	tokenizer, err := sentencepiece.LoadFrom(f)
 	runtime.Assert(err)
 	return tokenizer
+}
+
+func (m *Model) WarmUP() {
+	var wg sync.WaitGroup
+	load := func(p param.Param) {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			p.Load(true)
+		}()
+	}
+	load(m.embeddingWeight)
+	for _, p := range m.attentionWQ {
+		load(p)
+	}
+	for _, p := range m.attentionWK {
+		load(p)
+	}
+	for _, p := range m.attentionWV {
+		load(p)
+	}
+	for _, p := range m.attentionWO {
+		load(p)
+	}
+	for _, p := range m.attentionNorm {
+		load(p)
+	}
+	for _, p := range m.ffnW1 {
+		load(p)
+	}
+	for _, p := range m.ffnW2 {
+		load(p)
+	}
+	for _, p := range m.ffnW3 {
+		load(p)
+	}
+	for _, p := range m.ffnNorm {
+		load(p)
+	}
+	load(m.norm)
+	load(m.output)
+	wg.Wait()
 }
