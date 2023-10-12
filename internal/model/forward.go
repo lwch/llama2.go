@@ -7,16 +7,18 @@ import (
 )
 
 type Context struct {
-	cacheK   [][]float32
-	cacheV   [][]float32
-	headSize int64
+	cacheK     [][]float32
+	cacheV     [][]float32
+	headSize   int64
+	cacheParam bool
 }
 
-func (m *Model) NewContext() *Context {
+func (m *Model) NewContext(cacheParam bool) *Context {
 	return &Context{
-		cacheK:   make([][]float32, m.layers),
-		cacheV:   make([][]float32, m.layers),
-		headSize: m.embeddingDim / m.heads,
+		cacheK:     make([][]float32, m.layers),
+		cacheV:     make([][]float32, m.layers),
+		headSize:   m.embeddingDim / m.heads,
+		cacheParam: cacheParam,
 	}
 }
 
@@ -30,17 +32,17 @@ func (m *Model) Forward(ctx *Context, tk uint64, cursor int64) ([]float32, error
 		if err != nil {
 			return nil, err
 		}
-		x, err = m.feedForward(x, layer)
+		x, err = m.feedForward(ctx, x, layer)
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	norm, err := m.norm.Load(true) // (dim)
+	norm, err := m.norm.Load(ctx.cacheParam) // (dim)
 	if err != nil {
 		return nil, fmt.Errorf("load norm: %v", err)
 	}
-	output, err := m.output.Load(false) // (dim, vocab_size)
+	output, err := m.output.Load(ctx.cacheParam) // (dim, vocab_size)
 	if err != nil {
 		return nil, fmt.Errorf("load output: %v", err)
 	}
@@ -67,23 +69,23 @@ func (m *Model) attention(ctx *Context, layer int, x []float32, cursor int64) ([
 	attnQ := make([]float32, m.embeddingDim)
 	attnK := make([]float32, m.embeddingDim)
 	attnV := make([]float32, m.embeddingDim)
-	wq, err := m.attentionWQ[layer].Load(false) // (dim, dim)
+	wq, err := m.attentionWQ[layer].Load(ctx.cacheParam) // (dim, dim)
 	if err != nil {
 		return nil, fmt.Errorf("load layer%d.attention_wq: %v", layer, err)
 	}
-	wk, err := m.attentionWK[layer].Load(false) // (dim, dim)
+	wk, err := m.attentionWK[layer].Load(ctx.cacheParam) // (dim, dim)
 	if err != nil {
 		return nil, fmt.Errorf("load layer%d.attention_wk: %v", layer, err)
 	}
-	wv, err := m.attentionWV[layer].Load(false) // (dim, dim)
+	wv, err := m.attentionWV[layer].Load(ctx.cacheParam) // (dim, dim)
 	if err != nil {
 		return nil, fmt.Errorf("load layer%d.attention_wv: %v", layer, err)
 	}
-	wo, err := m.attentionWO[layer].Load(false) // (dim, dim)
+	wo, err := m.attentionWO[layer].Load(ctx.cacheParam) // (dim, dim)
 	if err != nil {
 		return nil, fmt.Errorf("load layer%d.attention_wo: %v", layer, err)
 	}
-	norm, err := m.attentionNorm[layer].Load(true) // (dim)
+	norm, err := m.attentionNorm[layer].Load(ctx.cacheParam) // (dim)
 	if err != nil {
 		return nil, fmt.Errorf("load layer%d.attention_norm: %v", layer, err)
 	}
@@ -161,20 +163,20 @@ func (m *Model) attention(ctx *Context, layer int, x []float32, cursor int64) ([
 	return y, nil
 }
 
-func (m *Model) feedForward(x []float32, layer int) ([]float32, error) {
-	w1, err := m.ffnW1[layer].Load(false) // (dim, dim2)
+func (m *Model) feedForward(ctx *Context, x []float32, layer int) ([]float32, error) {
+	w1, err := m.ffnW1[layer].Load(ctx.cacheParam) // (dim, dim2)
 	if err != nil {
 		return nil, fmt.Errorf("load layer%d.feed_forward_w1: %v", layer, err)
 	}
-	w2, err := m.ffnW2[layer].Load(false) // (dim2, dim)
+	w2, err := m.ffnW2[layer].Load(ctx.cacheParam) // (dim2, dim)
 	if err != nil {
 		return nil, fmt.Errorf("load layer%d.feed_forward_w2: %v", layer, err)
 	}
-	w3, err := m.ffnW3[layer].Load(false) // (dim, dim2)
+	w3, err := m.ffnW3[layer].Load(ctx.cacheParam) // (dim, dim2)
 	if err != nil {
 		return nil, fmt.Errorf("load layer%d.feed_forward_w3: %v", layer, err)
 	}
-	norm, err := m.ffnNorm[layer].Load(true) // (dim)
+	norm, err := m.ffnNorm[layer].Load(ctx.cacheParam) // (dim)
 	if err != nil {
 		return nil, fmt.Errorf("load layer%d.feed_forward_norm: %v", layer, err)
 	}

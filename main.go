@@ -38,6 +38,7 @@ func main() {
 	rootCmd.AddCommand(convertCmd)
 
 	textCompletionCmd.Flags().StringVar(&internal.ModelDir, "model", "./models", "model directory")
+	textCompletionCmd.Flags().BoolVar(&internal.CacheParam, "cache-param", false, "cache param")
 	runtime.Assert(textCompletionCmd.MarkFlagRequired("model"))
 	rootCmd.AddCommand(textCompletionCmd)
 

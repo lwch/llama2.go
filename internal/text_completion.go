@@ -13,6 +13,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var CacheParam bool
+
 func TextCompletion(*cobra.Command, []string) {
 	md := model.Load(ModelDir)
 	logging.Info("model loaded")
@@ -25,7 +27,7 @@ func TextCompletion(*cobra.Command, []string) {
 	input = bytes.TrimSpace(input)
 	tks := tk.Encode(string(input), true, false)
 
-	ctx := md.NewContext()
+	ctx := md.NewContext(CacheParam)
 	var nextToken uint64
 	for i, token := range tks {
 		begin := time.Now()
