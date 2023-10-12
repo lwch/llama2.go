@@ -53,6 +53,9 @@ func TextCompletion(*cobra.Command, []string) {
 		runtime.Assert(err)
 		nextToken = getLabel(scores)
 		inference := tk.Decode([]uint64{nextToken})
+		if nextToken == uint64(tk.Eos()) {
+			inference = "</s>"
+		}
 		fmt.Printf("cost: %s, inference=%s\n", cost, inference)
 		cursor++
 		if nextToken == uint64(tk.Eos()) {
