@@ -47,7 +47,7 @@ func TextCompletion(*cobra.Command, []string) {
 			prompt = "<s>"
 		}
 		inference := tk.Decode([]uint64{nextToken})
-		fmt.Printf("cost: %s, prompt: %s, inference: %s\n", cost, prompt, inference)
+		fmt.Printf("cost: %s, prompt: [%s], inference: [%s]\n", cost, prompt, inference)
 		cursor++
 	}
 
@@ -61,7 +61,7 @@ func TextCompletion(*cobra.Command, []string) {
 		if nextToken == uint64(tk.Eos()) {
 			inference = "</s>"
 		}
-		fmt.Printf("cost: %s, inference: %s\n", cost, inference)
+		fmt.Printf("cost: %s, inference: [%s]\n", cost, inference)
 		cursor++
 		if nextToken == uint64(tk.Eos()) {
 			break
