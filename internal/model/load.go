@@ -7,6 +7,7 @@ import (
 	"llama2/internal/param"
 	"os"
 	"path/filepath"
+	rt "runtime"
 	"sync"
 
 	"github.com/klauspost/compress/zip"
@@ -145,4 +146,5 @@ func (m *Model) WarmUP() {
 	load(m.norm)
 	load(m.output)
 	wg.Wait()
+	rt.GC()
 }
