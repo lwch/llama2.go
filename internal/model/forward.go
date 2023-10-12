@@ -99,6 +99,8 @@ func (m *Model) attention(ctx *Context, layer int, x []float32, cursor int64) ([
 	matMul(dx, wv, 1, m.embeddingDim, m.embeddingDim, attnV) // (1, dim)
 	clear(dx)
 
+	rope(attnQ, attnK, cursor, ctx.headSize)
+
 	// append cache
 	attnK = append(ctx.cacheK[layer], attnK...) // (seqlen, dim)
 	attnV = append(ctx.cacheV[layer], attnV...) // (seqlen, dim)

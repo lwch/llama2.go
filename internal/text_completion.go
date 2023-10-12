@@ -14,6 +14,7 @@ import (
 )
 
 var CacheParam bool
+var MaxInferenceLength int
 
 func TextCompletion(*cobra.Command, []string) {
 	md := model.Load(ModelDir)
@@ -28,24 +29,35 @@ func TextCompletion(*cobra.Command, []string) {
 	tks := tk.Encode(string(input), true, false)
 
 	ctx := md.NewContext(CacheParam)
+	var cursor int64
 	var nextToken uint64
-	for i, token := range tks {
+	for _, token := range tks {
 		begin := time.Now()
-		scores, err := md.Forward(ctx, token, int64(i))
+		scores, err := md.Forward(ctx, token, cursor)
+		cost := time.Since(begin)
 		runtime.Assert(err)
 		nextToken = getLabel(scores)
 		prompt := tk.Decode([]uint64{token})
-		got := tk.Decode([]uint64{nextToken})
-		fmt.Println(time.Since(begin), prompt, got)
+		if token == uint64(tk.Bos()) {
+			prompt = "<s>"
+		}
+		inference := tk.Decode([]uint64{nextToken})
+		fmt.Printf("cost: %s, prompt=%s, inference=%s\n", cost, prompt, inference)
+		cursor++
 	}
 
-	for {
+	for i := 0; i < MaxInferenceLength; i++ {
 		begin := time.Now()
-		scores, err := md.Forward(ctx, nextToken, int64(len(tks)))
+		scores, err := md.Forward(ctx, nextToken, cursor)
+		cost := time.Since(begin)
 		runtime.Assert(err)
 		nextToken = getLabel(scores)
-		str := tk.Decode([]uint64{nextToken})
-		fmt.Println(time.Since(begin), str)
+		inference := tk.Decode([]uint64{nextToken})
+		fmt.Printf("cost: %s, inference=%s\n", cost, inference)
+		cursor++
+		if nextToken == uint64(tk.Eos()) {
+			break
+		}
 	}
 }
 

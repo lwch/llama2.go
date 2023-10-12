@@ -113,3 +113,22 @@ func mul(x, w []float32, output []float32) {
 	}
 	wg.Wait()
 }
+
+// code from https://github.com/karpathy/llama2.c/blob/master/run.c#L265
+func rope(q, k []float32, cursor, headSize int64) {
+	for i := int64(0); i < int64(len(q)); i += 2 {
+		headDim := i % headSize
+		freq := 1 / math.Pow(10000, float64(headDim)/float64(headSize))
+		val := float64(cursor) * freq
+		fcr := math.Cos(val)
+		fci := math.Sin(val)
+		set := func(x []float32) {
+			v0 := x[i]
+			v1 := x[i+1]
+			x[i] = float32(fcr*float64(v0) - fci*float64(v1))
+			x[i+1] = float32(fcr*float64(v1) + fci*float64(v0))
+		}
+		set(q)
+		set(k)
+	}
+}

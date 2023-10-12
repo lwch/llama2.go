@@ -39,6 +39,7 @@ func main() {
 
 	textCompletionCmd.Flags().StringVar(&internal.ModelDir, "model", "./models", "model directory")
 	textCompletionCmd.Flags().BoolVar(&internal.CacheParam, "cache-param", false, "cache param")
+	textCompletionCmd.Flags().IntVar(&internal.MaxInferenceLength, "max-inference-length", 256, "max inference length")
 	runtime.Assert(textCompletionCmd.MarkFlagRequired("model"))
 	rootCmd.AddCommand(textCompletionCmd)
 
