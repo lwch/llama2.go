@@ -17,22 +17,30 @@ func (r *rebuildTensorV2) Call(args ...interface{}) (interface{}, error) {
 		return nil, fmt.Errorf("RebuildTensorV2 unexpected args: %#v", args)
 	}
 
-	storage, storageOk := args[0].(Storage)
+	storage, storageOk := args[0].(storage)
+	storageOffset, storageOffsetOk := args[1].(int)
 	size, sizeOk := args[2].(*types.Tuple)
-	requiresGrad, requiresGradOk := args[4].(bool)
-	if !storageOk || !sizeOk || !requiresGradOk {
+	stride, strideOk := args[3].(*types.Tuple)
+	if !storageOk || !storageOffsetOk || !sizeOk || !strideOk {
 		return nil, fmt.Errorf("RebuildTensorV2 unexpected args: %#v", args)
 	}
 
-	shape, err := tupleToInt64Slice(size)
+	sz, err := tupleToInt64Slice(size)
 	if err != nil {
 		return nil, fmt.Errorf("RebuildTensorV2: %v", err)
 	}
 
-	storage.SetShape(shape)
-	storage.SetRequiresGrad(requiresGrad)
+	st, err := tupleToInt64Slice(stride)
+	if err != nil {
+		return nil, fmt.Errorf("RebuildTensorV2: %v", err)
+	}
 
-	return storage, nil
+	return &Tensor{
+		st:     storage,
+		offset: storageOffset,
+		size:   sz,
+		stride: st,
+	}, nil
 }
 
 func tupleToInt64Slice(tuple *types.Tuple) ([]int64, error) {

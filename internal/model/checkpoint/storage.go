@@ -2,8 +2,11 @@ package checkpoint
 
 import (
 	"archive/zip"
+	"bufio"
 	"encoding/binary"
+	"fmt"
 	"os"
+	"reflect"
 )
 
 type storageType byte
@@ -20,47 +23,27 @@ const (
 	typeLong                        // torch.long, torch.int64
 )
 
-type Storage interface {
-	New(ckptDir, fileName string, dataSize int) Storage
-	SetShape(shape []int64)
-	GetShape() []int64
-	SetRequiresGrad(requiresGrad bool)
-	GetRequiresGrad() bool
+type storage interface {
+	New(ckptDir, fileName, location string, dataSize int) storage
 	Type() storageType
-	Load() (any, error)
+	Load(offset int, count int64) (any, error)
 }
 
 type base struct {
-	ckptDir      string
-	fileName     string
-	dataSize     int
-	shape        []int64
-	requiresGrad bool
+	ckptDir  string
+	fileName string
+	location string
+	count    int
 }
 
-func (b *base) init(ckptDir, fileName string, dataSize int) {
+func (b *base) init(ckptDir, fileName, location string, count int) {
 	b.ckptDir = ckptDir
 	b.fileName = fileName
-	b.dataSize = dataSize
+	b.location = location
+	b.count = count
 }
 
-func (b *base) SetShape(shape []int64) {
-	b.shape = shape
-}
-
-func (b *base) GetShape() []int64 {
-	return b.shape
-}
-
-func (b *base) SetRequiresGrad(requiresGrad bool) {
-	b.requiresGrad = requiresGrad
-}
-
-func (b *base) GetRequiresGrad() bool {
-	return b.requiresGrad
-}
-
-func (b *base) load(data any) error {
+func (b *base) load(offset int, data any) error {
 	f, err := os.Open(b.ckptDir)
 	if err != nil {
 		return err
@@ -79,10 +62,24 @@ func (b *base) load(data any) error {
 		return err
 	}
 	defer fs.Close()
-	switch dt := data.(type) {
-	case []uint16:
-		err = binary.Read(fs, binary.LittleEndian, dt)
+	if reflect.TypeOf(data).Kind() != reflect.Slice {
+		return fmt.Errorf("data is not a slice")
 	}
+	r := bufio.NewReader(fs)
+	skip := offset * int(reflect.TypeOf(data).Elem().Size())
+	for skip > 0 {
+		n, err := r.Discard(skip)
+		if err != nil {
+			return err
+		}
+		skip -= n
+	}
+	switch data.(type) {
+	case []uint16, []float32:
+	default:
+		return fmt.Errorf("unsupported data type: %T", data)
+	}
+	err = binary.Read(r, binary.LittleEndian, data)
 	if err != nil {
 		return err
 	}

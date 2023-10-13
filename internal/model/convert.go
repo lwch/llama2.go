@@ -16,7 +16,7 @@ import (
 )
 
 func Convert(ckpt *checkpoint.Model, params *Params, tokenizer, output string) {
-	params.Vocabs = ckpt.Params()["tok_embeddings.weight"].GetShape()[0]
+	params.Vocabs = ckpt.Params()["tok_embeddings.weight"].Shape()[0]
 
 	f, err := os.Create(output)
 	runtime.Assert(err)
@@ -79,12 +79,12 @@ func writeTokenizer(zw *zip.Writer, tokenizer string) {
 }
 
 // TODO: quantization
-func writeParam(zw *zip.Writer, p checkpoint.Storage, name string, transpose bool) ParamInfo {
+func writeParam(zw *zip.Writer, p *checkpoint.Tensor, name string, transpose bool) ParamInfo {
 	logging.Info("  => loading param %s...", name)
 	dt, err := p.Load()
 	runtime.Assert(err)
 	data := dt.([]uint16)
-	shapes := p.GetShape()
+	shapes := p.Shape()
 	logging.Info("  => param %s shape: %v", name, shapes)
 	if transpose {
 		if len(shapes) != 2 {
