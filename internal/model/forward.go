@@ -29,11 +29,11 @@ func (m *Model) Forward(ctx *Context, tk uint64, cursor int64) ([]float32, error
 		return nil, err
 	}
 	for layer := 0; layer < m.layers; layer++ {
-		x, err = m.attention(ctx, layer, x, cursor)
+		err = m.attention(ctx, layer, x, cursor)
 		if err != nil {
 			return nil, err
 		}
-		x, err = m.feedForward(ctx, x, layer)
+		err = m.feedForward(ctx, x, layer)
 		if err != nil {
 			return nil, err
 		}
@@ -51,6 +51,7 @@ func (m *Model) Forward(ctx *Context, tk uint64, cursor int64) ([]float32, error
 	// rmsnorm
 	y := make([]float32, m.embeddingDim) // (1, dim)
 	math.RMSNorm(x, norm, y, m.eps)      // (1, dim)
+	x = nil
 
 	vocabSize := m.output.Shapes()[1]
 
@@ -62,30 +63,30 @@ func (m *Model) Forward(ctx *Context, tk uint64, cursor int64) ([]float32, error
 	return z, nil
 }
 
-func (m *Model) attention(ctx *Context, layer int, x []float32, cursor int64) ([]float32, error) {
+func (m *Model) attention(ctx *Context, layer int, x []float32, cursor int64) error {
 	seqlen := cursor + 1
 	attnQ := make([]float32, m.embeddingDim)
 	attnK := make([]float32, m.embeddingDim)
 	attnV := make([]float32, m.embeddingDim)
 	wq, err := m.attentionWQ[layer].Load(ctx.cacheParam) // (dim, dim)
 	if err != nil {
-		return nil, fmt.Errorf("load layer%d.attention_wq: %v", layer, err)
+		return fmt.Errorf("load layer%d.attention_wq: %v", layer, err)
 	}
 	wk, err := m.attentionWK[layer].Load(ctx.cacheParam) // (dim, dim)
 	if err != nil {
-		return nil, fmt.Errorf("load layer%d.attention_wk: %v", layer, err)
+		return fmt.Errorf("load layer%d.attention_wk: %v", layer, err)
 	}
 	wv, err := m.attentionWV[layer].Load(ctx.cacheParam) // (dim, dim)
 	if err != nil {
-		return nil, fmt.Errorf("load layer%d.attention_wv: %v", layer, err)
+		return fmt.Errorf("load layer%d.attention_wv: %v", layer, err)
 	}
 	wo, err := m.attentionWO[layer].Load(ctx.cacheParam) // (dim, dim)
 	if err != nil {
-		return nil, fmt.Errorf("load layer%d.attention_wo: %v", layer, err)
+		return fmt.Errorf("load layer%d.attention_wo: %v", layer, err)
 	}
 	norm, err := m.attentionNorm[layer].Load(ctx.cacheParam) // (dim)
 	if err != nil {
-		return nil, fmt.Errorf("load layer%d.attention_norm: %v", layer, err)
+		return fmt.Errorf("load layer%d.attention_norm: %v", layer, err)
 	}
 
 	dx := make([]float32, m.embeddingDim) // (1, dim)
@@ -158,32 +159,32 @@ func (m *Model) attention(ctx *Context, layer int, x []float32, cursor int64) ([
 
 	// residual connection
 	for i := range x {
-		y[i] += x[i]
+		x[i] += y[i]
 	}
-	return y, nil
+	return nil
 }
 
-func (m *Model) feedForward(ctx *Context, x []float32, layer int) ([]float32, error) {
+func (m *Model) feedForward(ctx *Context, x []float32, layer int) error {
 	w1, err := m.ffnW1[layer].Load(ctx.cacheParam) // (dim, dim2)
 	if err != nil {
-		return nil, fmt.Errorf("load layer%d.feed_forward_w1: %v", layer, err)
+		return fmt.Errorf("load layer%d.feed_forward_w1: %v", layer, err)
 	}
 	w2, err := m.ffnW2[layer].Load(ctx.cacheParam) // (dim2, dim)
 	if err != nil {
-		return nil, fmt.Errorf("load layer%d.feed_forward_w2: %v", layer, err)
+		return fmt.Errorf("load layer%d.feed_forward_w2: %v", layer, err)
 	}
 	w3, err := m.ffnW3[layer].Load(ctx.cacheParam) // (dim, dim2)
 	if err != nil {
-		return nil, fmt.Errorf("load layer%d.feed_forward_w3: %v", layer, err)
+		return fmt.Errorf("load layer%d.feed_forward_w3: %v", layer, err)
 	}
 	norm, err := m.ffnNorm[layer].Load(ctx.cacheParam) // (dim)
 	if err != nil {
-		return nil, fmt.Errorf("load layer%d.feed_forward_norm: %v", layer, err)
+		return fmt.Errorf("load layer%d.feed_forward_norm: %v", layer, err)
 	}
 
 	if m.ffnW1[layer].Shapes()[1] != m.ffnW3[layer].Shapes()[1] ||
 		m.ffnW1[layer].Shapes()[1] != m.ffnW2[layer].Shapes()[0] {
-		return nil, fmt.Errorf("invalid feed forward weight shape")
+		return fmt.Errorf("invalid feed forward weight shape")
 	}
 	dim2 := m.ffnW1[layer].Shapes()[1]
 
@@ -216,9 +217,9 @@ func (m *Model) feedForward(ctx *Context, x []float32, layer int) ([]float32, er
 
 	// residual connection
 	for i := range x {
-		dx[i] += x[i]
+		x[i] += dx[i]
 	}
-	return dx, nil
+	return nil
 }
 
 func clear(x []float32) {

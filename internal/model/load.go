@@ -2,7 +2,6 @@ package model
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"llama2/internal/param"
 	"os"
@@ -34,12 +33,12 @@ func Load(dir string) *Model {
 	md.eps = params.Eps
 	md.tk = loadTokenizer(zr)
 
-	key := "embedding_weight"
+	key := "tok_embeddings.weight"
 	info, ok := params.Params[key]
 	if !ok {
-		panic(errors.New("embedding_weight info not found"))
+		panic(fmt.Errorf("%s info not found", key))
 	}
-	md.embeddingWeight = loadParam(dir, zr, "embedding_weight", info)
+	md.embeddingWeight = loadParam(dir, zr, key, info)
 
 	md.attentionWQ = nil
 	md.attentionWK = nil
@@ -52,25 +51,36 @@ func Load(dir string) *Model {
 	md.ffnNorm = nil
 	for i := 0; i < params.Layers; i++ {
 		loadLayerParam := func(name string) param.Param {
-			key := fmt.Sprintf("layers_%d_%s", i, name)
+			key := fmt.Sprintf("layers.%d.%s", i, name)
 			info, ok := params.Params[key]
 			if !ok {
 				panic(fmt.Errorf("%s info not found", key))
 			}
 			return loadParam(dir, zr, key, info)
 		}
-		md.attentionWQ = append(md.attentionWQ, loadLayerParam("attention_wq"))
-		md.attentionWK = append(md.attentionWK, loadLayerParam("attention_wk"))
-		md.attentionWV = append(md.attentionWV, loadLayerParam("attention_wv"))
-		md.attentionWO = append(md.attentionWO, loadLayerParam("attention_wo"))
-		md.attentionNorm = append(md.attentionNorm, loadLayerParam("attention_norm"))
-		md.ffnW1 = append(md.ffnW1, loadLayerParam("ffn_w1"))
-		md.ffnW2 = append(md.ffnW2, loadLayerParam("ffn_w2"))
-		md.ffnW3 = append(md.ffnW3, loadLayerParam("ffn_w3"))
-		md.ffnNorm = append(md.ffnNorm, loadLayerParam("ffn_norm"))
+		md.attentionWQ = append(md.attentionWQ, loadLayerParam("attention.wq.weight"))
+		md.attentionWK = append(md.attentionWK, loadLayerParam("attention.wk.weight"))
+		md.attentionWV = append(md.attentionWV, loadLayerParam("attention.wv.weight"))
+		md.attentionWO = append(md.attentionWO, loadLayerParam("attention.wo.weight"))
+		md.attentionNorm = append(md.attentionNorm, loadLayerParam("attention_norm.weight"))
+		md.ffnW1 = append(md.ffnW1, loadLayerParam("feed_forward.w1.weight"))
+		md.ffnW2 = append(md.ffnW2, loadLayerParam("feed_forward.w2.weight"))
+		md.ffnW3 = append(md.ffnW3, loadLayerParam("feed_forward.w3.weight"))
+		md.ffnNorm = append(md.ffnNorm, loadLayerParam("ffn_norm.weight"))
 	}
-	md.norm = loadParam(dir, zr, "norm", params.Params["norm"])
-	md.output = loadParam(dir, zr, "output", params.Params["output"])
+	key = "norm.weight"
+	info, ok = params.Params[key]
+	if !ok {
+		panic(fmt.Errorf("%s info not found", key))
+	}
+	md.norm = loadParam(dir, zr, key, info)
+
+	key = "output.weight"
+	info, ok = params.Params[key]
+	if !ok {
+		panic(fmt.Errorf("%s info not found", key))
+	}
+	md.output = loadParam(dir, zr, key, info)
 
 	return &md
 }

@@ -14,6 +14,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var ModelDir string
 var CacheParam bool
 var MaxInferenceLength int
 var Temperature float32
@@ -36,6 +37,7 @@ func TextCompletion(*cobra.Command, []string) {
 	runtime.Assert(err)
 	input = bytes.TrimSpace(input)
 	tks := tk.Encode(string(input), true, false)
+	prompt := len(tks)
 
 	samp := sampler.New(Temperature, TopP)
 
@@ -57,6 +59,7 @@ func TextCompletion(*cobra.Command, []string) {
 		cursor++
 	}
 
+	tks = append(tks, nextToken)
 	for i := 0; i < MaxInferenceLength; i++ {
 		begin := time.Now()
 		scores, err := md.Forward(ctx, nextToken, cursor)
@@ -72,5 +75,10 @@ func TextCompletion(*cobra.Command, []string) {
 		if nextToken == uint64(tk.Eos()) {
 			break
 		}
+		tks = append(tks, nextToken)
 	}
+
+	fmt.Printf("[%s] ==> %s\n",
+		tk.Decode(tks[:prompt]),
+		tk.Decode(tks[prompt:]))
 }

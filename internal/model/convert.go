@@ -15,8 +15,8 @@ import (
 	"github.com/lwch/runtime"
 )
 
-func Convert(ckpt *checkpoint.Model, params *Params, tokenizer, output string) {
-	params.Vocabs = ckpt.Params()["tok_embeddings.weight"].Shape()[0]
+func Convert(ckpts []*checkpoint.Model, params *Params, tokenizer, output string) {
+	params.Vocabs = ckpts[0].Params()["tok_embeddings.weight"].Shape()[0]
 
 	f, err := os.Create(output)
 	runtime.Assert(err)
@@ -27,35 +27,36 @@ func Convert(ckpt *checkpoint.Model, params *Params, tokenizer, output string) {
 
 	writeTokenizer(zw, tokenizer)
 
-	list := ckpt.Params()
-
 	params.Params = make(map[string]ParamInfo)
-	params.Params["embedding_weight"] = writeParam(zw, list["tok_embeddings.weight"], "embedding_weight", false)
+	key := "tok_embeddings.weight"
+	params.Params[key] = writeParam(ckpts, zw, key, false, true)
 	for i := 0; i < params.Layers; i++ {
-		key := fmt.Sprintf("layers_%d_attention_wq", i)
-		params.Params[key] = writeParam(zw, list[fmt.Sprintf("layers.%d.attention.wq.weight", i)], key, true)
-		key = fmt.Sprintf("layers_%d_attention_wk", i)
-		params.Params[key] = writeParam(zw, list[fmt.Sprintf("layers.%d.attention.wk.weight", i)], key, true)
-		key = fmt.Sprintf("layers_%d_attention_wv", i)
-		params.Params[key] = writeParam(zw, list[fmt.Sprintf("layers.%d.attention.wv.weight", i)], key, true)
-		key = fmt.Sprintf("layers_%d_attention_wo", i)
-		params.Params[key] = writeParam(zw, list[fmt.Sprintf("layers.%d.attention.wo.weight", i)], key, true)
+		key = fmt.Sprintf("layers.%d.attention.wq.weight", i)
+		params.Params[key] = writeParam(ckpts, zw, key, true, false)
+		key = fmt.Sprintf("layers.%d.attention.wk.weight", i)
+		params.Params[key] = writeParam(ckpts, zw, key, true, false)
+		key = fmt.Sprintf("layers.%d.attention.wv.weight", i)
+		params.Params[key] = writeParam(ckpts, zw, key, true, false)
+		key = fmt.Sprintf("layers.%d.attention.wo.weight", i)
+		params.Params[key] = writeParam(ckpts, zw, key, true, true)
 
-		key = fmt.Sprintf("layers_%d_attention_norm", i)
-		params.Params[key] = writeParam(zw, list[fmt.Sprintf("layers.%d.attention_norm.weight", i)], key, false)
+		key = fmt.Sprintf("layers.%d.attention_norm.weight", i)
+		params.Params[key] = writeParam(ckpts, zw, key, false, false)
 
-		key = fmt.Sprintf("layers_%d_ffn_w1", i)
-		params.Params[key] = writeParam(zw, list[fmt.Sprintf("layers.%d.feed_forward.w1.weight", i)], key, true)
-		key = fmt.Sprintf("layers_%d_ffn_w2", i)
-		params.Params[key] = writeParam(zw, list[fmt.Sprintf("layers.%d.feed_forward.w2.weight", i)], key, true)
-		key = fmt.Sprintf("layers_%d_ffn_w3", i)
-		params.Params[key] = writeParam(zw, list[fmt.Sprintf("layers.%d.feed_forward.w3.weight", i)], key, true)
+		key = fmt.Sprintf("layers.%d.feed_forward.w1.weight", i)
+		params.Params[key] = writeParam(ckpts, zw, key, true, false)
+		key = fmt.Sprintf("layers.%d.feed_forward.w2.weight", i)
+		params.Params[key] = writeParam(ckpts, zw, key, true, true)
+		key = fmt.Sprintf("layers.%d.feed_forward.w3.weight", i)
+		params.Params[key] = writeParam(ckpts, zw, key, true, false)
 
-		key = fmt.Sprintf("layers_%d_ffn_norm", i)
-		params.Params[key] = writeParam(zw, list[fmt.Sprintf("layers.%d.ffn_norm.weight", i)], key, false)
+		key = fmt.Sprintf("layers.%d.ffn_norm.weight", i)
+		params.Params[key] = writeParam(ckpts, zw, key, false, false)
 	}
-	params.Params["norm"] = writeParam(zw, list["norm.weight"], "norm", false)
-	params.Params["output"] = writeParam(zw, list["output.weight"], "output", true)
+	key = "norm.weight"
+	params.Params[key] = writeParam(ckpts, zw, key, false, false)
+	key = "output.weight"
+	params.Params[key] = writeParam(ckpts, zw, key, true, false)
 
 	writeParams(zw, params)
 }
@@ -78,37 +79,80 @@ func writeTokenizer(zw *zip.Writer, tokenizer string) {
 	runtime.Assert(err)
 }
 
-// TODO: quantization
-func writeParam(zw *zip.Writer, p *checkpoint.Tensor, name string, transpose bool) ParamInfo {
-	logging.Info("  => loading param %s...", name)
-	dt, err := p.Load()
-	runtime.Assert(err)
-	data := dt.([]uint16)
-	shapes := p.Shape()
-	logging.Info("  => param %s shape: %v", name, shapes)
-	if transpose {
-		if len(shapes) != 2 {
-			panic("len(shapes)!=2")
+func getParamData(ckpts []*checkpoint.Model, name string, rowParallel bool) ([]uint16, []int64, error) {
+	shape := ckpts[0].Params()[name].Shape()
+	if len(shape) == 1 {
+		p, err := ckpts[0].Params()[name].Load()
+		if err != nil {
+			return nil, nil, err
 		}
-		cols, rows := shapes[0], shapes[1]
-		t := make([]uint16, rows*cols)
-		for i := int64(0); i < rows; i++ {
-			for j := int64(0); j < cols; j++ {
-				t[i*cols+j] = data[j*rows+i]
+		return p.([]uint16), shape, nil
+	}
+	if rowParallel {
+		datas := make([][]uint16, len(ckpts))
+		for i, ckpt := range ckpts {
+			p, err := ckpt.Params()[name].Load()
+			if err != nil {
+				return nil, nil, err
+			}
+			datas[i] = p.([]uint16)
+		}
+		data := make([]uint16, shape[0]*shape[1]*int64(len(ckpts)))
+		for y := int64(0); y < shape[0]; y++ {
+			for i := 0; i < len(datas); i++ {
+				idx := y*shape[1]*int64(len(datas)) + int64(i)*shape[1]
+				copy(data[idx:idx+shape[1]], datas[i][y*shape[1]:(y+1)*shape[1]])
 			}
 		}
-		data = t
-		shapes[0], shapes[1] = shapes[1], shapes[0]
-		logging.Info("  => param %s transpose shape to %v", name, shapes)
+		shape[1] *= int64(len(ckpts))
+		return data, shape, nil
 	}
+	var data []uint16
+	for _, ckpt := range ckpts {
+		dt, err := ckpt.Params()[name].Load()
+		if err != nil {
+			return nil, nil, err
+		}
+		data = append(data, dt.([]uint16)...)
+	}
+	shape[0] *= int64(len(ckpts))
+	return data, shape, nil
+}
+
+// TODO: quantization
+func writeParam(ckpts []*checkpoint.Model, zw *zip.Writer, name string, transpose, rowParallel bool) ParamInfo {
+	logging.Info("  => loading param %s...", name)
+	data, shapes, err := getParamData(ckpts, name, rowParallel)
+	runtime.Assert(err)
+	logging.Info("  => param %s shape: %v", name, shapes)
 	w, err := zw.CreateHeader(&zip.FileHeader{
 		Name:   filepath.Join("params", name),
 		Method: zip.Store,
 	})
 	runtime.Assert(err)
-	runtime.Assert(binary.Write(w, binary.LittleEndian, data))
+
+	if !transpose {
+		runtime.Assert(binary.Write(w, binary.LittleEndian, data))
+		return ParamInfo{
+			Type:  param.TypeBF16,
+			Shape: shapes,
+		}
+	}
+
+	if len(shapes) != 2 {
+		panic("len(shapes)!=2")
+	}
+	rows, cols := shapes[0], shapes[1]
+	for x := int64(0); x < cols; x++ {
+		params := make([]uint16, rows)
+		for y := int64(0); y < rows; y++ {
+			params[y] = data[y*cols+x]
+		}
+		runtime.Assert(binary.Write(w, binary.LittleEndian, params))
+	}
+	logging.Info("  => param %s transpose shape to [%d, %d]", name, shapes[1], shapes[0])
 	return ParamInfo{
 		Type:  param.TypeBF16,
-		Shape: shapes,
+		Shape: []int64{shapes[1], shapes[0]},
 	}
 }
