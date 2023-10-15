@@ -123,6 +123,9 @@ func ROPE(q, k []float32, cursor, headSize int64) {
 		fcr := math.Cos(val)
 		fci := math.Sin(val)
 		set := func(x []float32) {
+			if i > int64(len(x)) {
+				return
+			}
 			v0 := x[i]
 			v1 := x[i+1]
 			x[i] = float32(fcr*float64(v0) - fci*float64(v1))

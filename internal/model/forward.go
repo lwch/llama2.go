@@ -10,7 +10,7 @@ import (
 type Context struct {
 	cacheK     [][]float32
 	cacheV     [][]float32
-	headSize   int64
+	headDim    int64
 	cacheParam bool
 }
 
@@ -18,7 +18,7 @@ func (m *Model) NewContext(cacheParam bool) *Context {
 	return &Context{
 		cacheK:     make([][]float32, m.layers),
 		cacheV:     make([][]float32, m.layers),
-		headSize:   m.embeddingDim / m.heads,
+		headDim:    m.embeddingDim / m.heads,
 		cacheParam: cacheParam,
 	}
 }
@@ -65,9 +65,6 @@ func (m *Model) Forward(ctx *Context, tk uint64, cursor int64) ([]float32, error
 
 func (m *Model) attention(ctx *Context, layer int, x []float32, cursor int64) error {
 	seqlen := cursor + 1
-	attnQ := make([]float32, m.embeddingDim)
-	attnK := make([]float32, m.embeddingDim)
-	attnV := make([]float32, m.embeddingDim)
 	wq, err := m.attentionWQ[layer].Load(ctx.cacheParam) // (dim, dim)
 	if err != nil {
 		return fmt.Errorf("load layer%d.attention_wq: %v", layer, err)
@@ -92,13 +89,20 @@ func (m *Model) attention(ctx *Context, layer int, x []float32, cursor int64) er
 	dx := make([]float32, m.embeddingDim) // (1, dim)
 	math.RMSNorm(x, norm, dx, m.eps)      // (1, dim)
 
+	qDim := m.heads * ctx.headDim
+	kvDim := m.kvHeads * ctx.headDim
+
+	attnQ := make([]float32, qDim)
+	attnK := make([]float32, kvDim)
+	attnV := make([]float32, kvDim)
+
 	// compute q, k, v vector
-	math.MatMul(dx, wq, 1, m.embeddingDim, m.embeddingDim, attnQ) // (1, dim)
-	math.MatMul(dx, wk, 1, m.embeddingDim, m.embeddingDim, attnK) // (1, dim)
-	math.MatMul(dx, wv, 1, m.embeddingDim, m.embeddingDim, attnV) // (1, dim)
+	math.MatMul(dx, wq, 1, qDim, m.embeddingDim, attnQ)  // (1, dim)
+	math.MatMul(dx, wk, 1, kvDim, m.embeddingDim, attnK) // (1, dim)
+	math.MatMul(dx, wv, 1, kvDim, m.embeddingDim, attnV) // (1, dim)
 	clear(dx)
 
-	math.ROPE(attnQ, attnK, cursor, ctx.headSize)
+	math.ROPE(attnQ, attnK, cursor, ctx.headDim)
 
 	// append cache
 	attnK = append(ctx.cacheK[layer], attnK...) // (seqlen, dim)
@@ -107,7 +111,7 @@ func (m *Model) attention(ctx *Context, layer int, x []float32, cursor int64) er
 	ctx.cacheV[layer] = attnV
 
 	// attention
-	scale := math2.Sqrt(float64(ctx.headSize))
+	scale := math2.Sqrt(float64(ctx.headDim))
 	var wgHeads sync.WaitGroup
 	wgHeads.Add(int(m.heads))
 	for head := int64(0); head < m.heads; head++ {
@@ -115,17 +119,17 @@ func (m *Model) attention(ctx *Context, layer int, x []float32, cursor int64) er
 			defer wgHeads.Done()
 
 			// q @ k^T
-			// (1, head_size) @ (head_size, seqlen) => (1, seqlen)
-			q := attnQ[head*ctx.headSize : (head+1)*ctx.headSize] // (1, head_size)
-			score := make([]float32, seqlen)                      // (seqlen)
+			// (1, q_head_size) @ (head_size, seqlen) => (1, seqlen)
+			q := attnQ[head*ctx.headDim : (head+1)*ctx.headDim] // (1, head_size)
+			score := make([]float32, seqlen)                    // (seqlen)
 			var wg sync.WaitGroup
 			wg.Add(int(seqlen))
 			for cursor := int64(0); cursor < seqlen; cursor++ {
 				go func(cursor int64) {
 					defer wg.Done()
-					idx := cursor * m.embeddingDim
-					k := attnK[idx+head*ctx.headSize : idx+(head+1)*ctx.headSize] // (head_size, 1)
-					math.MatMul(q, k, 1, 1, ctx.headSize, score[cursor:cursor+1]) // (1, head_size) @ (head_size, 1) => (1)
+					idx := cursor * m.kvHeads * ctx.headDim
+					k := attnK[idx+head*ctx.headDim : idx+(head+1)*ctx.headDim]  // (head_size, 1)
+					math.MatMul(q, k, 1, 1, ctx.headDim, score[cursor:cursor+1]) // (1, head_size) @ (head_size, 1) => (1)
 					score[cursor] /= float32(scale)
 				}(cursor)
 			}
@@ -137,13 +141,13 @@ func (m *Model) attention(ctx *Context, layer int, x []float32, cursor int64) er
 
 			// score @ v
 			// (seqlen) @ (seqlen, head_size) => (head_size)
-			wg.Add(int(seqlen * ctx.headSize))
+			wg.Add(int(seqlen * ctx.headDim))
 			for cursor := int64(0); cursor < seqlen; cursor++ {
 				idx := cursor * m.embeddingDim
-				for dim := int64(0); dim < ctx.headSize; dim++ {
+				for dim := int64(0); dim < ctx.headDim; dim++ {
 					go func(cursor, dim int64) {
 						defer wg.Done()
-						dx[head*ctx.headSize+dim] += score[cursor] * attnV[idx+head*ctx.headSize+dim]
+						dx[head*ctx.headDim+dim] += score[cursor] * attnV[idx+head*ctx.headDim+dim]
 					}(cursor, dim)
 				}
 			}

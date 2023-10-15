@@ -23,6 +23,7 @@ type Model struct {
 	embeddingDim    int64
 	layers          int
 	heads           int64
+	kvHeads         int64
 	eps             float32
 	tk              *sentencepiece.Model
 }

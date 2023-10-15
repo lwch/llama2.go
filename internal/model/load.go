@@ -30,6 +30,7 @@ func Load(dir string) *Model {
 	md.embeddingDim = params.Dim
 	md.layers = params.Layers
 	md.heads = params.Heads
+	md.kvHeads = params.KVHeads
 	md.eps = params.Eps
 	md.tk = loadTokenizer(zr)
 
