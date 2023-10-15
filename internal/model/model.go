@@ -34,8 +34,8 @@ func (m *Model) ShowInfo() {
 	logging.Info("  + layers: %d", m.layers)
 	logging.Info("  + heads: %d", m.heads)
 	logging.Info("  + kv_heads: %d", m.kvHeads)
-	logging.Info("  + q_embedding: %d", m.embeddingDim/m.heads)
-	logging.Info("  + kv_embedding: %d", m.embeddingDim/m.kvHeads)
+	logging.Info("  + q_embedding each head: %d", m.embeddingDim/m.heads)
+	logging.Info("  + kv_embedding each head: %d", m.embeddingDim/m.kvHeads)
 	logging.Info("  + norm_eps: %f", m.eps)
 }
 
