@@ -31,6 +31,9 @@ func Load(dir string) *Model {
 	md.layers = params.Layers
 	md.heads = params.Heads
 	md.kvHeads = params.KVHeads
+	if md.kvHeads == 0 {
+		md.kvHeads = md.heads
+	}
 	md.eps = params.Eps
 	md.tk = loadTokenizer(zr)
 
