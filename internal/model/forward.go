@@ -65,15 +65,15 @@ func (m *Model) Forward(ctx *Context, tk uint64, cursor int64) ([]float32, error
 
 func (m *Model) attention(ctx *Context, layer int, x []float32, cursor int64) error {
 	seqlen := cursor + 1
-	wq, err := m.attentionWQ[layer].Load(ctx.cacheParam) // (dim, dim)
+	wq, err := m.attentionWQ[layer].Load(ctx.cacheParam) // (dim, q_dim)
 	if err != nil {
 		return fmt.Errorf("load layer%d.attention_wq: %v", layer, err)
 	}
-	wk, err := m.attentionWK[layer].Load(ctx.cacheParam) // (dim, dim)
+	wk, err := m.attentionWK[layer].Load(ctx.cacheParam) // (dim, kv_dim)
 	if err != nil {
 		return fmt.Errorf("load layer%d.attention_wk: %v", layer, err)
 	}
-	wv, err := m.attentionWV[layer].Load(ctx.cacheParam) // (dim, dim)
+	wv, err := m.attentionWV[layer].Load(ctx.cacheParam) // (dim, kv_dim)
 	if err != nil {
 		return fmt.Errorf("load layer%d.attention_wv: %v", layer, err)
 	}
@@ -97,16 +97,16 @@ func (m *Model) attention(ctx *Context, layer int, x []float32, cursor int64) er
 	attnV := make([]float32, kvDim)
 
 	// compute q, k, v vector
-	math.MatMul(dx, wq, 1, qDim, m.embeddingDim, attnQ)  // (1, dim)
-	math.MatMul(dx, wk, 1, kvDim, m.embeddingDim, attnK) // (1, dim)
-	math.MatMul(dx, wv, 1, kvDim, m.embeddingDim, attnV) // (1, dim)
+	math.MatMul(dx, wq, 1, qDim, m.embeddingDim, attnQ)  // (1, q_dim)
+	math.MatMul(dx, wk, 1, kvDim, m.embeddingDim, attnK) // (1, kv_dim)
+	math.MatMul(dx, wv, 1, kvDim, m.embeddingDim, attnV) // (1, kv_dim)
 	clear(dx)
 
 	math.ROPE(attnQ, attnK, cursor, ctx.headDim)
 
 	// append cache
-	attnK = append(ctx.cacheK[layer], attnK...) // (seqlen, dim)
-	attnV = append(ctx.cacheV[layer], attnV...) // (seqlen, dim)
+	attnK = append(ctx.cacheK[layer], attnK...) // (seqlen, kv_dim)
+	attnV = append(ctx.cacheV[layer], attnV...) // (seqlen, kv_dim)
 	ctx.cacheK[layer] = attnK
 	ctx.cacheV[layer] = attnV
 
@@ -119,8 +119,8 @@ func (m *Model) attention(ctx *Context, layer int, x []float32, cursor int64) er
 			defer wgHeads.Done()
 
 			// q @ k^T
-			// (1, q_head_size) @ (head_size, seqlen) => (1, seqlen)
-			q := attnQ[head*ctx.headDim : (head+1)*ctx.headDim] // (1, head_size)
+			// (1, head_dim) @ (head_dim, seqlen) => (1, seqlen)
+			q := attnQ[head*ctx.headDim : (head+1)*ctx.headDim] // (1, head_dim)
 			score := make([]float32, seqlen)                    // (seqlen)
 			var wg sync.WaitGroup
 			wg.Add(int(seqlen))
@@ -128,7 +128,7 @@ func (m *Model) attention(ctx *Context, layer int, x []float32, cursor int64) er
 				go func(cursor int64) {
 					defer wg.Done()
 					idx := cursor * m.kvHeads * ctx.headDim
-					k := attnK[idx+(head%m.kvHeads)*ctx.headDim : idx+((head%m.kvHeads)+1)*ctx.headDim] // (head_size, 1)
+					k := attnK[idx+(head%m.kvHeads)*ctx.headDim : idx+((head%m.kvHeads)+1)*ctx.headDim] // (head_dim, 1), repeat k if kv_heads < heads
 					math.MatMul(q, k, 1, 1, ctx.headDim, score[cursor:cursor+1])                        // (1, head_size) @ (head_size, 1) => (1)
 					score[cursor] /= float32(scale)
 				}(cursor)
@@ -140,14 +140,14 @@ func (m *Model) attention(ctx *Context, layer int, x []float32, cursor int64) er
 			math.Softmax(score, seqlen)
 
 			// score @ v
-			// (seqlen) @ (seqlen, head_size) => (head_size)
+			// (seqlen) @ (seqlen, head_dim) => (head_dim)
 			wg.Add(int(seqlen * ctx.headDim))
 			for cursor := int64(0); cursor < seqlen; cursor++ {
-				idx := cursor * m.embeddingDim
+				idx := cursor * m.kvHeads * ctx.headDim
 				for dim := int64(0); dim < ctx.headDim; dim++ {
 					go func(cursor, dim int64) {
 						defer wg.Done()
-						dx[head*ctx.headDim+dim] += score[cursor] * attnV[idx+(head%m.kvHeads)*ctx.headDim+dim]
+						dx[head*ctx.headDim+dim] += score[cursor] * attnV[idx+(head%m.kvHeads)*ctx.headDim+dim] // repeat v if kv_heads < heads
 					}(cursor, dim)
 				}
 			}
