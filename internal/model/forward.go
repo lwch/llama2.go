@@ -128,7 +128,7 @@ func (m *Model) attention(ctx *Context, layer int, x []float32, cursor int64) er
 				go func(cursor int64) {
 					defer wg.Done()
 					idx := cursor * m.kvHeads * ctx.headDim
-					k := attnK[idx+(head%m.kvHeads)*ctx.headDim : idx+((head+1)%m.kvHeads)*ctx.headDim] // (head_size, 1)
+					k := attnK[idx+(head%m.kvHeads)*ctx.headDim : idx+((head%m.kvHeads)+1)*ctx.headDim] // (head_size, 1)
 					math.MatMul(q, k, 1, 1, ctx.headDim, score[cursor:cursor+1])                        // (1, head_size) @ (head_size, 1) => (1)
 					score[cursor] /= float32(scale)
 				}(cursor)
@@ -147,7 +147,7 @@ func (m *Model) attention(ctx *Context, layer int, x []float32, cursor int64) er
 				for dim := int64(0); dim < ctx.headDim; dim++ {
 					go func(cursor, dim int64) {
 						defer wg.Done()
-						dx[head*ctx.headDim+dim] += score[cursor] * attnV[idx+head*ctx.headDim+dim]
+						dx[head*ctx.headDim+dim] += score[cursor] * attnV[idx+(head%m.kvHeads)*ctx.headDim+dim]
 					}(cursor, dim)
 				}
 			}
