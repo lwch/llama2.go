@@ -31,14 +31,14 @@ var textCompletionCmd = &cobra.Command{
 }
 
 func main() {
-	convertCmd.Flags().StringVar(&internal.OutputDir, "output", "./llama2.model", "output directory")
+	convertCmd.Flags().StringVarP(&internal.OutputDir, "output", "o", "./llama2.model", "output directory")
 	rootCmd.AddCommand(convertCmd)
 
-	textCompletionCmd.Flags().StringVar(&internal.ModelDir, "model", "./models", "model directory")
+	textCompletionCmd.Flags().StringVarP(&internal.ModelDir, "model", "m", "./models", "model directory")
 	textCompletionCmd.Flags().BoolVar(&internal.CacheParam, "cache", false, "cache param in memory")
 	textCompletionCmd.Flags().IntVar(&internal.MaxInferenceLength, "max-length", 16, "max inference length")
-	textCompletionCmd.Flags().Float32Var(&internal.Temperature, "temperature", 0.6, "temperature")
-	textCompletionCmd.Flags().Float32Var(&internal.TopP, "top-p", 0.9, "top p")
+	textCompletionCmd.Flags().Float32VarP(&internal.Temperature, "temperature", "t", 0.6, "temperature")
+	textCompletionCmd.Flags().Float32VarP(&internal.TopP, "top-p", "p", 0.9, "top p")
 	runtime.Assert(textCompletionCmd.MarkFlagRequired("model"))
 	rootCmd.AddCommand(textCompletionCmd)
 
