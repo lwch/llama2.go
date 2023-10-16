@@ -53,6 +53,8 @@ func Chat(*cobra.Command, []string) {
 		} else {
 			input = fmt.Sprintf("[INST] <<SYS>>\n%s\n<</SYS>>\n\n%s [/INST]", system, user)
 		}
+		system = ""
+		user = ""
 		tokens := tk.Encode(input, true, false)
 		for i, token := range tokens {
 			scores, err := md.Forward(ctx, token, int64(len(tks)))
