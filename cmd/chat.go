@@ -51,7 +51,7 @@ func Chat(*cobra.Command, []string) {
 		if len(system) == 0 {
 			input = fmt.Sprintf("[INST] %s [/INST]", user)
 		} else {
-			input = fmt.Sprintf("[INST] <<SYS>\n%s\n<</SYS>\n\n%s [/INST]", system, user)
+			input = fmt.Sprintf("[INST] <<SYS>>\n%s\n<</SYS>>\n\n%s [/INST]", system, user)
 		}
 		tokens := tk.Encode(input, true, false)
 		for i, token := range tokens {
