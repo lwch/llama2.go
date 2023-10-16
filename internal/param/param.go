@@ -4,6 +4,7 @@ import (
 	"archive/zip"
 	"encoding/binary"
 	"os"
+	rt "runtime"
 )
 
 type Type byte
@@ -72,6 +73,7 @@ func (b *base) load(data any) error {
 	case []uint16:
 		err = binary.Read(fs, binary.LittleEndian, dt)
 	}
+	rt.GC()
 	if err != nil {
 		return err
 	}
