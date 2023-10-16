@@ -25,6 +25,12 @@ func Chat(*cobra.Command, []string) {
 	logging.Info("model loaded")
 	md.ShowInfo()
 
+	if CacheParam {
+		logging.Info("warm up model...")
+		md.WarmUP()
+		logging.Info("warm up done")
+	}
+
 	tk := md.GetTokenizer()
 	samp := sampler.New(Temperature, TopP)
 
