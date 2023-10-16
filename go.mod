@@ -3,10 +3,10 @@ module llama2
 go 1.20
 
 require (
-	github.com/klauspost/compress v1.17.0
+	github.com/klauspost/compress v1.17.1
 	github.com/lwch/logging v1.0.1
 	github.com/lwch/runtime v1.0.1
-	github.com/lwch/sentencepiece v0.0.0-20231011092428-6d1f5119b757
+	github.com/lwch/sentencepiece v0.0.0-20231016020846-24578c4daf09
 	github.com/nlpodyssey/gopickle v0.2.0
 	github.com/spf13/cobra v1.7.0
 )

@@ -36,7 +36,7 @@ func (m *Model) ShowInfo() {
 	logging.Info("  + kv_heads: %d", m.kvHeads)
 	logging.Info("  + q_embedding each head: %d", m.embeddingDim/m.heads)
 	logging.Info("  + kv_embedding each head: %d", m.embeddingDim/m.kvHeads)
-	logging.Info("  + norm_eps: %f", m.eps)
+	logging.Info("  + norm_eps: %e", m.eps)
 }
 
 func (m *Model) GetTokenizer() *sentencepiece.Model {
