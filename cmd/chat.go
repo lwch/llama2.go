@@ -64,6 +64,7 @@ func Chat(*cobra.Command, []string) {
 			}
 		}
 		fmt.Println()
+		fmt.Print(tk.Decode([]uint64{uint64(nextToken)}))
 		for {
 			scores, err := md.Forward(ctx, uint64(nextToken), int64(len(tks)))
 			runtime.Assert(err)
