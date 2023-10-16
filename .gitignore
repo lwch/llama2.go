@@ -1,6 +1,7 @@
 /convert
 /completion
+/chat
 /llama2
-/llama2.model
+/*.model
 /test
 /.vscode
