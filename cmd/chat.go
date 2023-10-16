@@ -38,7 +38,9 @@ func Chat(*cobra.Command, []string) {
 	var system, user string
 	var tks []uint64
 	for {
-		system = strings.TrimSpace(readStdin("Enter system prompt (optional): "))
+		if len(tks) == 0 {
+			system = strings.TrimSpace(readStdin("Enter system prompt (optional): "))
+		}
 		for len(user) == 0 {
 			user = strings.TrimSpace(readStdin("Enter user prompt: "))
 		}

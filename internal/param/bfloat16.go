@@ -6,7 +6,7 @@ import (
 
 type BF16 struct {
 	base
-	data []float32
+	data []uint16
 }
 
 var _ Param = &BF16{}
@@ -17,23 +17,27 @@ func NewBF16(modelDir, fileName string, shapes []int64) *BF16 {
 	return &ret
 }
 
+func (bf16 *BF16) decode(data []uint16) []float32 {
+	ret := make([]float32, len(data))
+	for i, v := range data {
+		ret[i] = decodeBFloat16(v)
+	}
+	return ret
+}
+
 func (bf16 *BF16) Load(cache bool) ([]float32, error) {
 	if cache && bf16.data != nil {
-		return bf16.data, nil
+		return bf16.decode(bf16.data), nil
 	}
 	raw := make([]uint16, bf16.ElemCount())
 	err := bf16.load(raw)
 	if err != nil {
 		return nil, err
 	}
-	ret := make([]float32, bf16.ElemCount())
-	for i, v := range raw {
-		ret[i] = decodeBFloat16(v)
-	}
 	if cache {
-		bf16.data = ret
+		bf16.data = raw
 	}
-	return ret, nil
+	return bf16.decode(bf16.data), nil
 }
 
 func (bf16 *BF16) LoadBatch(n uint64) ([]float32, error) {
