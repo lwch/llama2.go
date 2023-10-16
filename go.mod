@@ -6,7 +6,7 @@ require (
 	github.com/klauspost/compress v1.17.1
 	github.com/lwch/logging v1.0.1
 	github.com/lwch/runtime v1.0.1
-	github.com/lwch/sentencepiece v0.0.0-20231016020846-24578c4daf09
+	github.com/lwch/sentencepiece v0.0.0-20231016030018-9b7a65bc2abf
 	github.com/nlpodyssey/gopickle v0.2.0
 	github.com/spf13/cobra v1.7.0
 )
