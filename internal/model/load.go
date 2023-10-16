@@ -126,7 +126,7 @@ func (m *Model) WarmUP() {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			p.Load(true)
+			p.Warmup()
 		}()
 	}
 	load(m.embeddingWeight)

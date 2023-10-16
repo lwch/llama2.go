@@ -25,6 +25,18 @@ func (bf16 *BF16) decode(data []uint16) []float32 {
 	return ret
 }
 
+func (bf16 *BF16) Warmup() error {
+	if bf16.data != nil {
+		return nil
+	}
+	bf16.data = make([]uint16, bf16.ElemCount())
+	err := bf16.load(bf16.data)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func (bf16 *BF16) Load(cache bool) ([]float32, error) {
 	if cache && bf16.data != nil {
 		return bf16.decode(bf16.data), nil
@@ -37,7 +49,7 @@ func (bf16 *BF16) Load(cache bool) ([]float32, error) {
 	if cache {
 		bf16.data = raw
 	}
-	return bf16.decode(bf16.data), nil
+	return bf16.decode(raw), nil
 }
 
 func (bf16 *BF16) LoadBatch(n uint64) ([]float32, error) {
