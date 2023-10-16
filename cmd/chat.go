@@ -54,9 +54,6 @@ func Chat(*cobra.Command, []string) {
 			input = fmt.Sprintf("[INST] <<SYS>\n%s\n<</SYS>\n\n%s [/INST]", system, user)
 		}
 		tokens := tk.Encode(input, true, false)
-		if nextToken != -1 {
-			tokens = append([]uint64{uint64(nextToken)}, tokens...)
-		}
 		for i, token := range tokens {
 			scores, err := md.Forward(ctx, token, int64(len(tks)))
 			runtime.Assert(err)
@@ -70,14 +67,14 @@ func Chat(*cobra.Command, []string) {
 		for {
 			scores, err := md.Forward(ctx, uint64(nextToken), int64(len(tks)))
 			runtime.Assert(err)
-			token := samp.Sample(scores)
-			fmt.Print(token)
-			tks = append(tks, token)
-			if token == uint64(tk.Eos()) {
+			nextToken = int64(samp.Sample(scores))
+			fmt.Print(tk.Decode([]uint64{uint64(nextToken)}))
+			tks = append(tks, uint64(nextToken))
+			if nextToken == tk.Eos() {
 				break
 			}
-			nextToken = int64(token)
 		}
+		md.Forward(ctx, uint64(nextToken), int64(len(tks)))
 		fmt.Println()
 	}
 }
