@@ -2,6 +2,14 @@
 
 Port of Facebook's LLaMA model in pure go use little memory.
 
+## memory usage
+
+| Model | Precision | Memory | Memory(Cached Params) |
+| ----- | --------- | ------ | --------------------- |
+| 7B  | bf16 | 600M+ | 25G+ |
+| 13B | bf16 | 1G+ | 43G+ |
+| 70B | bf16 | 3G+ | untested |
+
 ## usage
 
 1. download model from [huggingface](https://huggingface.co/lwch/llama2.go)
