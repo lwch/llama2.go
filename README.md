@@ -180,3 +180,7 @@ NOTE: make sure you have enough hard disk space.
 ```
 
 NOTE: support quantization in the feature
+
+## cluster computing
+
+cluster computing will implement in the feature
