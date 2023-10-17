@@ -1,6 +1,6 @@
 # llama2.go
 
-Port of Facebook's LLaMA model in pure go use little memory.
+Port of Facebook's LLaMA model in pure go and use little memory.
 
 ## memory usage
 
