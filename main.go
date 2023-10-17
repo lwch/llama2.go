@@ -1,7 +1,7 @@
 package main
 
 import (
-	"llama2/internal"
+	"llama2/cmd"
 	"os"
 
 	"github.com/lwch/runtime"
@@ -20,26 +20,40 @@ var rootCmd = &cobra.Command{
 var convertCmd = &cobra.Command{
 	Use:   "convert",
 	Short: "Convert model to tnn model",
-	Run:   internal.Convert,
+	Args:  cobra.MinimumNArgs(1),
+	Run:   cmd.Convert,
 }
 
 var textCompletionCmd = &cobra.Command{
 	Use:   "text-completion",
 	Short: "Text completion",
-	Run:   internal.TextCompletion,
+	Run:   cmd.TextCompletion,
+}
+
+var chatCmd = &cobra.Command{
+	Use:   "chat",
+	Short: "Chat",
+	Run:   cmd.Chat,
 }
 
 func main() {
-	convertCmd.Flags().StringVar(&internal.ModelDir, "model", "", "model directory")
-	convertCmd.Flags().StringVar(&internal.ModelName, "name", "", "model name, like llama-2-7b")
-	convertCmd.Flags().StringVar(&internal.OutputDir, "output", "./models", "output directory")
-	runtime.Assert(convertCmd.MarkFlagRequired("model"))
-	//runtime.Assert(convertCmd.MarkFlagRequired("name"))
+	convertCmd.Flags().StringVarP(&cmd.OutputDir, "output", "o", "./llama2.model", "output directory")
 	rootCmd.AddCommand(convertCmd)
 
-	textCompletionCmd.Flags().StringVar(&internal.ModelDir, "model", "./models", "model directory")
+	textCompletionCmd.Flags().StringVarP(&cmd.ModelDir, "model", "m", "./models", "model directory")
+	textCompletionCmd.Flags().BoolVar(&cmd.CacheParam, "cache", false, "cache param in memory")
+	textCompletionCmd.Flags().IntVar(&cmd.MaxInferenceLength, "max-length", 16, "max inference length")
+	textCompletionCmd.Flags().Float32VarP(&cmd.Temperature, "temperature", "t", 0.6, "temperature")
+	textCompletionCmd.Flags().Float32VarP(&cmd.TopP, "top-p", "p", 0.9, "top p")
 	runtime.Assert(textCompletionCmd.MarkFlagRequired("model"))
 	rootCmd.AddCommand(textCompletionCmd)
+
+	chatCmd.Flags().StringVarP(&cmd.ModelDir, "model", "m", "./models", "model directory")
+	chatCmd.Flags().BoolVar(&cmd.CacheParam, "cache", false, "cache param in memory")
+	chatCmd.Flags().Float32VarP(&cmd.Temperature, "temperature", "t", 0.6, "temperature")
+	chatCmd.Flags().Float32VarP(&cmd.TopP, "top-p", "p", 0.9, "top p")
+	runtime.Assert(chatCmd.MarkFlagRequired("model"))
+	rootCmd.AddCommand(chatCmd)
 
 	rootCmd.CompletionOptions.DisableDefaultCmd = true
 	runtime.Assert(rootCmd.Execute())
