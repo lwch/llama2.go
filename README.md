@@ -15,7 +15,7 @@ Port of Facebook's LLaMA model in pure go use little memory.
 1. download model from [huggingface](https://huggingface.co/lwch/llama2.go)
 2. text completion
     ```shell
-    cat << EOF | ./llama2 text-completion --model 7B.model [--cache]
+    cat << EOF | ./llama2 text-completion -m 7B.model [--cache]
     Translate English to French:
 
     sea otter => loutre de mer
@@ -23,36 +23,6 @@ Port of Facebook's LLaMA model in pure go use little memory.
     plush girafe => girafe peluche
     cheese =>
     EOF
-    2023/10/16 13:37:19 [INFO]model loaded
-    2023/10/16 13:37:19 [INFO]model info:
-    2023/10/16 13:37:19 [INFO]  + embedding dim: 4096
-    2023/10/16 13:37:19 [INFO]  + layers: 32
-    2023/10/16 13:37:19 [INFO]  + heads: 32
-    2023/10/16 13:37:19 [INFO]  + kv_heads: 32
-    2023/10/16 13:37:19 [INFO]  + q_embedding each head: 128
-    2023/10/16 13:37:19 [INFO]  + kv_embedding each head: 128
-    2023/10/16 13:37:19 [INFO]  + norm_eps: 1.000000e-05
-    2023/10/16 13:37:19 [INFO]warm up model...
-    2023/10/16 13:37:33 [INFO]warm up done
-    cost: 16.165197234s, prompt: [<s>], inference: [ C]
-    cost: 16.072778356s, prompt: [1], inference: [.]
-    cost: 15.972892473s, prompt: [*], inference: [ The]
-    cost: 16.262925139s, prompt: [1], inference: [*]
-    cost: 15.465786798s, prompt: [=], inference: [1]
-    cost: 16.380428126s, prompt: [1], inference: [,]
-    cost: 16.30807488s, prompt: [,], inference: [ ]
-    cost: 16.341568482s, prompt: [2], inference: [*]
-    cost: 15.228400338s, prompt: [*], inference: [2]
-    cost: 16.761713107s, prompt: [2], inference: [=]
-    cost: 16.510118543s, prompt: [=], inference: [4]
-    cost: 16.591869889s, inference: [,]
-    cost: 15.450870226s, inference: [3]
-    cost: 16.43200593s, inference: [*]
-    cost: 16.653783072s, inference: [3]
-    cost: 16.635336996s, inference: [=]
-    ^Cvim 
-    lwch@hz:~/llama2.go$ vim completion 
-    lwch@hz:~/llama2.go$ ./completion 
     2023/10/16 13:44:47 [INFO]model loaded
     2023/10/16 13:44:47 [INFO]model info:
     2023/10/16 13:44:47 [INFO]  + embedding dim: 4096
@@ -161,6 +131,28 @@ Port of Facebook's LLaMA model in pure go use little memory.
     Traanslate French to English:
 
     lait => milk
+    ```
+3. chat
+    ```shell
+    ./llama2 chat -m 7B.chat.model [--cache]
+    2023/10/17 10:13:50 [INFO]model loaded
+    2023/10/17 10:13:50 [INFO]model info:
+    2023/10/17 10:13:50 [INFO]  + embedding dim: 4096
+    2023/10/17 10:13:50 [INFO]  + layers: 32
+    2023/10/17 10:13:50 [INFO]  + heads: 32
+    2023/10/17 10:13:50 [INFO]  + kv_heads: 32
+    2023/10/17 10:13:50 [INFO]  + q_embedding each head: 128
+    2023/10/17 10:13:50 [INFO]  + kv_embedding each head: 128
+    2023/10/17 10:13:50 [INFO]  + norm_eps: 1.000000e-06
+    2023/10/17 10:13:50 [INFO]warm up model...
+    2023/10/17 10:14:10 [INFO]warm up done
+    Enter system prompt (optional):
+    Enter user prompt: Whats's your name?
+    thinking.................
+    Hello! My name is LLaMA, I'm a large language model trained by a team of researcher at Meta AI. ð
+    Enter user prompt: Where are you from?
+    thinking................
+    I'm just an AI, I don't have a physical body or a specific location where I "come from."" I was created by a group of researcher at Meta AI and my primary function is to assist and converse with users like you through the internet. I'm excited to be here and help you with any questions or topics you'd like to discuss!
     ```
 
 Note: if you have enough memory you can run with `--cache` param to persist params in memory
