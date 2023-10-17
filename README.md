@@ -13,7 +13,11 @@ Port of Facebook's LLaMA model in pure go and use little memory.
 ## usage
 
 1. download model from [huggingface](https://huggingface.co/lwch/llama2.go)
-2. text completion
+2. build this project
+    ```shell
+    go build
+    ```
+3. text completion
     ```shell
     cat << EOF | ./llama2 text-completion -m 7B.model [--cache]
     Translate English to French:
@@ -132,7 +136,7 @@ Port of Facebook's LLaMA model in pure go and use little memory.
 
     lait => milk
     ```
-3. chat
+4. chat
     ```shell
     ./llama2 chat -m 7B.chat.model [--cache]
     2023/10/17 10:13:50 [INFO]model loaded
