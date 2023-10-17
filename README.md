@@ -8,7 +8,7 @@ Port of Facebook's LLaMA model in pure go use little memory.
 | ----- | --------- | ------ | --------------------- |
 | 7B  | bf16 | 600M+ | 25G+ |
 | 13B | bf16 | 1G+ | 43G+ |
-| 70B | bf16 | 3G+ | untested |
+| 70B | bf16 | 3G+ | untest |
 
 ## usage
 
@@ -172,3 +172,5 @@ using command below to convert llama model to llama2 model fot this project.
 ```shell
 ./llama2 convert --output 7B.model ~/llama/llama-2-7b
 ```
+
+NOTE: support quantization in the feature
