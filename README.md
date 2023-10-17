@@ -173,6 +173,8 @@ Note: if you have enough memory you can run with `--cache` param to persist para
 
 using command below to convert llama model to llama2 model fot this project.
 
+NOTE: make sure you have enough hard disk space.
+
 ```shell
 ./llama2 convert --output 7B.model ~/llama/llama-2-7b
 ```
