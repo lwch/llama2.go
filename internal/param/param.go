@@ -19,7 +19,7 @@ type Param interface {
 	Dims() int64
 	Warmup() error
 	Load(cache bool) ([]float32, error)
-	LoadBatch(uint64) ([]float32, error)
+	LoadBatch(uint64, []float32) error
 }
 
 type base struct {

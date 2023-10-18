@@ -102,13 +102,14 @@ func Sigmoid(x float32) float32 {
 	return 1 / (1 + float32(math.Exp(float64(-x))))
 }
 
-func Mul(x, w []float32, output []float32) {
+// Mul x * w => x
+func Mul(x, w []float32) {
 	var wg sync.WaitGroup
 	wg.Add(len(x))
 	for i, v := range x {
 		go func(i int, v float32) {
 			defer wg.Done()
-			output[i] = v * w[i]
+			x[i] *= w[i]
 		}(i, v)
 	}
 	wg.Wait()

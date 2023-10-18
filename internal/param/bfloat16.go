@@ -52,7 +52,7 @@ func (bf16 *BF16) Load(cache bool) ([]float32, error) {
 	return bf16.decode(raw), nil
 }
 
-func (bf16 *BF16) LoadBatch(n uint64) ([]float32, error) {
+func (bf16 *BF16) LoadBatch(n uint64, data []float32) error {
 	batchSize := int64(1)
 	if len(bf16.shapes) > 1 {
 		batchSize = bf16.shapes[1]
@@ -63,14 +63,13 @@ func (bf16 *BF16) LoadBatch(n uint64) ([]float32, error) {
 	raw := make([]uint16, int64(n+1)*batchSize)
 	err := bf16.load(raw)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	raw = raw[n*uint64(batchSize):]
-	ret := make([]float32, batchSize)
 	for i, v := range raw {
-		ret[i] = decodeBFloat16(v)
+		data[i] = decodeBFloat16(v)
 	}
-	return ret, nil
+	return nil
 }
 
 func encodeBFloat16(f float32) uint16 {

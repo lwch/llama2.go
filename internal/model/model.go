@@ -21,6 +21,7 @@ type Model struct {
 	norm            param.Param
 	output          param.Param
 	embeddingDim    int64
+	vocabSize       int64
 	layers          int
 	heads           int64
 	kvHeads         int64

@@ -28,6 +28,7 @@ func Load(dir string) *Model {
 
 	var md Model
 	md.embeddingDim = params.Dim
+	md.vocabSize = params.Vocabs
 	md.layers = params.Layers
 	md.heads = params.Heads
 	md.kvHeads = params.KVHeads
