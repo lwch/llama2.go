@@ -1,6 +1,8 @@
 package param
 
 import (
+	"runtime"
+	"sync"
 	"unsafe"
 )
 
@@ -19,8 +21,24 @@ func NewBF16(modelDir, fileName string, shapes []int64) *BF16 {
 
 func (bf16 *BF16) decode(data []uint16) []float32 {
 	ret := make([]float32, len(data))
-	for i, v := range data {
-		ret[i] = decodeBFloat16(v)
+	n := runtime.NumCPU()
+	decode := func(batch []float32, offset int) {
+		var wg sync.WaitGroup
+		wg.Add(len(batch))
+		for i := 0; i < len(batch); i++ {
+			go func(i int) {
+				defer wg.Done()
+				batch[i] = decodeBFloat16(data[i+offset])
+			}(i)
+		}
+		wg.Wait()
+	}
+	for i := 0; i < len(data); {
+		if i+n >= len(data) {
+			n = len(data) - i
+		}
+		batch := ret[i : i+n]
+		decode(batch, i)
 	}
 	return ret
 }
