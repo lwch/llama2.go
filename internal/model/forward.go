@@ -20,10 +20,11 @@ type Context struct {
 	y  []float32
 	// attention
 	attnQ, attnK, attnV []float32
-	score               []float32
-	yAttn               []float32
+	scores              [][2048]float32 // max of llama sequence length
+	attnY               []float32
 	// ffn
-	left, right []float32
+	ffnLeft, ffnRight []float32
+	ffnY              []float32
 }
 
 func (m *Model) NewContext(cacheParam bool) *Context {
@@ -43,14 +44,15 @@ func (m *Model) NewContext(cacheParam bool) *Context {
 		dx: make([]float32, m.embeddingDim),
 		y:  make([]float32, m.vocabSize),
 		// attention
-		attnQ: make([]float32, qDim),
-		attnK: make([]float32, kvDim),
-		attnV: make([]float32, kvDim),
-		score: make([]float32, 2048), // max of llama sequence length
-		yAttn: make([]float32, m.embeddingDim),
+		attnQ:  make([]float32, qDim),
+		attnK:  make([]float32, kvDim),
+		attnV:  make([]float32, kvDim),
+		scores: make([][2048]float32, m.heads),
+		attnY:  make([]float32, m.embeddingDim),
 		// ffn
-		left:  make([]float32, dim2),
-		right: make([]float32, dim2),
+		ffnLeft:  make([]float32, dim2),
+		ffnRight: make([]float32, dim2),
+		ffnY:     make([]float32, m.embeddingDim),
 	}
 }
 
@@ -141,7 +143,7 @@ func (m *Model) attention(ctx *Context, layer int, x []float32, cursor int64) er
 			// q @ k^T
 			// (1, head_dim) @ (head_dim, seqlen) => (1, seqlen)
 			q := ctx.attnQ[head*ctx.headDim : (head+1)*ctx.headDim] // (1, head_dim)
-			score := ctx.score[:seqlen]                             // (seqlen)
+			score := ctx.scores[head][:seqlen]                      // (seqlen)
 			var wg sync.WaitGroup
 			wg.Add(int(seqlen))
 			for cursor := int64(0); cursor < seqlen; cursor++ {
@@ -178,12 +180,10 @@ func (m *Model) attention(ctx *Context, layer int, x []float32, cursor int64) er
 
 	// dx @ wo
 	// (1, dim) @ (dim, dim) => (1, dim)
-	math.MatMul(ctx.dx, wo, 1, m.embeddingDim, m.embeddingDim, ctx.yAttn) // (1, dim)
+	math.MatMul(ctx.dx, wo, 1, m.embeddingDim, m.embeddingDim, ctx.attnY) // (1, dim)
 
 	// residual connection
-	for i := range x {
-		x[i] += ctx.yAttn[i]
-	}
+	math.Add(x, ctx.attnY) // (1, dim)
 	return nil
 }
 
@@ -215,28 +215,26 @@ func (m *Model) feedForward(ctx *Context, x []float32, layer int) error {
 
 	// dx @ w1
 	// (1, dim) @ (dim, dim2) => (1, dim2)
-	math.MatMul(ctx.dx, w1, 1, dim2, m.embeddingDim, ctx.left) // (1, dim2)
+	math.MatMul(ctx.dx, w1, 1, dim2, m.embeddingDim, ctx.ffnLeft) // (1, dim2)
 
 	// dx @ w3
 	// (1, dim) @ (dim, dim2) => (1, dim2)
-	math.MatMul(ctx.dx, w3, 1, dim2, m.embeddingDim, ctx.right) // (1, dim2)
+	math.MatMul(ctx.dx, w3, 1, dim2, m.embeddingDim, ctx.ffnRight) // (1, dim2)
 
 	// silu for y1
 	// (1, dim2)
-	math.SiLU(ctx.left) // (1, dim2)
+	math.SiLU(ctx.ffnLeft) // (1, dim2)
 
 	// y1 * y2
 	// (1, dim2) * (1, dim2) => (1, dim2)
-	math.Mul(ctx.left, ctx.right) // (1, dim2)
+	math.Mul(ctx.ffnLeft, ctx.ffnRight) // (1, dim2)
 
 	// y @ w2
 	// (1, dim2) @ (dim2, dim) => (1, dim)
-	math.MatMul(ctx.left, w2, 1, m.embeddingDim, dim2, ctx.dx) // (1, dim)
+	math.MatMul(ctx.ffnLeft, w2, 1, m.embeddingDim, dim2, ctx.ffnY) // (1, dim)
 
 	// residual connection
-	for i := range x {
-		x[i] += ctx.dx[i]
-	}
+	math.Add(x, ctx.ffnY) // (1, dim)
 	return nil
 }
 
