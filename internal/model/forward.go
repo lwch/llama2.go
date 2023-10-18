@@ -24,6 +24,7 @@ type Context struct {
 	yAttn               []float32
 	// ffn
 	left, right []float32
+	yFFN        []float32
 }
 
 func (m *Model) NewContext(cacheParam bool) *Context {
@@ -51,6 +52,7 @@ func (m *Model) NewContext(cacheParam bool) *Context {
 		// ffn
 		left:  make([]float32, dim2),
 		right: make([]float32, dim2),
+		yFFN:  make([]float32, dim2),
 	}
 }
 
@@ -227,11 +229,11 @@ func (m *Model) feedForward(ctx *Context, x []float32, layer int) error {
 
 	// y1 * y2
 	// (1, dim2) * (1, dim2) => (1, dim2)
-	math.Mul(ctx.left, ctx.right) // (1, dim2)
+	math.Mul(ctx.left, ctx.right, ctx.yFFN) // (1, dim2)
 
 	// y @ w2
 	// (1, dim2) @ (dim2, dim) => (1, dim)
-	math.MatMul(ctx.left, w2, 1, m.embeddingDim, dim2, ctx.dx) // (1, dim)
+	math.MatMul(ctx.yFFN, w2, 1, m.embeddingDim, dim2, ctx.dx) // (1, dim)
 
 	// residual connection
 	for i := range x {
