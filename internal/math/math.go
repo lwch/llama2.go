@@ -25,7 +25,7 @@ func rowParallelMatMul(x, w []float32, m, n, d int64, output []float32) {
 				idx := row*n + col
 				output[idx] = 0
 				for i := int64(0); i < d; i++ {
-					output[idx] += x[row*d+i] * w[i*n+col]
+					output[idx] += x[row*d+i] * w[col*d+i]
 				}
 			}
 		}(row)
@@ -43,7 +43,7 @@ func colParallelMatMul(x, w []float32, m, n, d int64, output []float32) {
 				idx := row*n + col
 				output[idx] = 0
 				for i := int64(0); i < d; i++ {
-					output[idx] += x[row*d+i] * w[i*n+col]
+					output[idx] += x[row*d+i] * w[col*d+i]
 				}
 			}
 		}(col)
