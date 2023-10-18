@@ -19,7 +19,7 @@ func NewBF16(modelDir, fileName string, shapes []int64) *BF16 {
 	return &ret
 }
 
-func (bf16 *BF16) decode(data []uint16) []float32 {
+func DecodeBF16(data []uint16) []float32 {
 	ret := make([]float32, len(data))
 	decode := func(offset, size int) {
 		for i := 0; i < size; i++ {
@@ -58,7 +58,7 @@ func (bf16 *BF16) Warmup() error {
 
 func (bf16 *BF16) Load(cache bool) ([]float32, error) {
 	if cache && bf16.data != nil {
-		return bf16.decode(bf16.data), nil
+		return DecodeBF16(bf16.data), nil
 	}
 	raw := make([]uint16, bf16.ElemCount())
 	err := bf16.load(raw)
@@ -68,7 +68,7 @@ func (bf16 *BF16) Load(cache bool) ([]float32, error) {
 	if cache {
 		bf16.data = raw
 	}
-	return bf16.decode(raw), nil
+	return DecodeBF16(raw), nil
 }
 
 func (bf16 *BF16) LoadBatch(n uint64, data []float32) error {

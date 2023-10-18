@@ -11,7 +11,34 @@ type Type byte
 
 const (
 	TypeBF16 Type = iota
+	TypeQI8
+	TypeQU8
+	TypeQI7
+	TypeQU7
+	TypeQI6
+	TypeQU6
+	TypeQI5
+	TypeQU5
+	TypeQI4
+	TypeQU4
 )
+
+func (t Type) Bits() int {
+	switch t {
+	case TypeQI8, TypeQU8:
+		return 8
+	case TypeQI7, TypeQU7:
+		return 7
+	case TypeQI6, TypeQU6:
+		return 6
+	case TypeQI5, TypeQU5:
+		return 5
+	case TypeQI4, TypeQU4:
+		return 4
+	default:
+		return 16
+	}
+}
 
 type Param interface {
 	Shapes() []int64

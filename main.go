@@ -38,6 +38,8 @@ var chatCmd = &cobra.Command{
 
 func main() {
 	convertCmd.Flags().StringVarP(&cmd.OutputDir, "output", "o", "./llama2.model", "output directory")
+	convertCmd.Flags().StringVarP(&cmd.Quantize, "quantize", "q", "bf16", "bf16, i8, u8, i7, u7, i6, u6, i5, u5, i4, u4")
+	convertCmd.Flags().Int64VarP(&cmd.GroupSize, "group", "g", 4*1024, "quantize group size")
 	rootCmd.AddCommand(convertCmd)
 
 	textCompletionCmd.Flags().StringVarP(&cmd.ModelDir, "model", "m", "./models", "model directory")
