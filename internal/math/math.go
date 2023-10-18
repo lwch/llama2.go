@@ -51,164 +51,72 @@ func colParallelMatMul(x, w []float32, m, n, d int64, output []float32) {
 	wg.Wait()
 }
 
-func rmsnormScale(x []float32) float32 {
-	n := runtime.NumCPU()
-	step := len(x) / n
-	var wg sync.WaitGroup
-	var scale float32
-	var m sync.Mutex
-	wg.Add(n)
-	for i := 0; i < n; i++ {
-		offset := i * step
-		if i == n-1 {
-			step = len(x) - offset
-		}
-		go func(offset, step int) {
-			defer wg.Done()
-			var sum float32
-			for i := 0; i < step; i++ {
-				n := float64(x[offset+i])
-				sum += float32(math.Pow(n, 2))
-			}
-			m.Lock()
-			scale += sum
-			m.Unlock()
-		}(offset, step)
-	}
-	wg.Wait()
-	scale /= float32(len(x))
-	return scale
-}
-
 func RMSNorm(x, w []float32, output []float32, eps float32) {
-	scale := rmsnormScale(x)
+	values := make([]float32, runtime.NumCPU())
+	vectorParallel(len(x), runtime.NumCPU(), func(batch, offset, size int) {
+		var sum float32
+		for i := 0; i < size; i++ {
+			idx := offset + i
+			sum += float32(math.Pow(float64(x[idx]), 2))
+		}
+		values[batch] = sum
+	})
+	var scale float32
+	for i := 0; i < len(values); i++ {
+		scale += values[i]
+	}
+	scale /= float32(len(x))
 	scale += eps
 	scale = 1 / float32(math.Sqrt(float64(scale)))
-	n := runtime.NumCPU()
-	step := len(x) / n
-	var wg sync.WaitGroup
-	wg.Add(n)
-	for i := 0; i < n; i++ {
-		offset := i * step
-		if i == n-1 {
-			step = len(x) - offset
+	vectorParallel(len(x), runtime.NumCPU(), func(_, offset, size int) {
+		for i := 0; i < size; i++ {
+			idx := offset + i
+			output[idx] = x[idx] * scale * w[idx]
 		}
-		go func(offset, step int) {
-			defer wg.Done()
-			for i := 0; i < step; i++ {
-				idx := offset + i
-				output[idx] = x[idx] * scale * w[idx]
-			}
-		}(offset, step)
-	}
-	wg.Wait()
-}
-
-func softmaxMax(x []float32) float32 {
-	n := runtime.NumCPU()
-	step := len(x) / n
-	var wg sync.WaitGroup
-	wg.Add(n)
-	max := x[0]
-	var m sync.Mutex
-	for i := 0; i < n; i++ {
-		offset := i * step
-		if i == n-1 {
-			step = len(x) - offset
-		}
-		go func(offset, step int) {
-			defer wg.Done()
-			for i := 0; i < step; i++ {
-				idx := offset + i
-				m.Lock()
-				if x[idx] > max {
-					max = x[idx]
-				}
-				m.Unlock()
-			}
-		}(offset, step)
-	}
-	wg.Wait()
-	return max
-}
-
-func softmaxSum(x []float32, max float32) float32 {
-	n := runtime.NumCPU()
-	step := len(x) / n
-	var wg sync.WaitGroup
-	wg.Add(n)
-	var sum float32
-	var m sync.Mutex
-	for i := 0; i < n; i++ {
-		offset := i * step
-		if i == n-1 {
-			step = len(x) - offset
-		}
-		go func(offset, step int) {
-			defer wg.Done()
-			for i := 0; i < step; i++ {
-				idx := offset + i
-				dx := float32(math.Exp(float64(x[idx] - max)))
-				x[idx] = dx
-				m.Lock()
-				sum += dx
-				m.Unlock()
-			}
-		}(offset, step)
-	}
-	wg.Wait()
-	return sum
-}
-
-func softmax(x []float32, sum float32) {
-	n := runtime.NumCPU()
-	step := len(x) / n
-	var wg sync.WaitGroup
-	wg.Add(n)
-	for i := 0; i < n; i++ {
-		offset := i * step
-		if i == n-1 {
-			step = len(x) - offset
-		}
-		go func(offset, step int) {
-			defer wg.Done()
-			for i := 0; i < step; i++ {
-				idx := offset + i
-				x[idx] /= sum
-			}
-		}(offset, step)
-	}
-	wg.Wait()
+	})
 }
 
 func Softmax(x []float32, n int64) {
-	max := softmaxMax(x)
-	sum := softmaxSum(x, max)
-	softmax(x, sum)
+	values := make([]float32, runtime.NumCPU())
+	vectorParallel(len(x), runtime.NumCPU(), func(batch, offset, size int) {
+		values[batch] = x[offset]
+		for i := 1; i < size; i++ {
+			idx := offset + i
+			if x[idx] > values[batch] {
+				values[batch] = x[idx]
+			}
+		}
+	})
+	max := values[0]
+	for i := 1; i < len(values); i++ {
+		if values[i] > max {
+			max = values[i]
+		}
+	}
+	var sum float32
+	vectorParallel(len(x), runtime.NumCPU(), func(_, offset, size int) {
+		for i := 0; i < size; i++ {
+			idx := offset + i
+			dx := float32(math.Exp(float64(x[idx] - max)))
+			x[idx] = dx
+			sum += dx
+		}
+	})
+	vectorParallel(len(x), runtime.NumCPU(), func(_, offset, size int) {
+		for i := 0; i < size; i++ {
+			idx := offset + i
+			x[idx] /= sum
+		}
+	})
 }
 
 func SiLU(x []float32) {
-	n := runtime.NumCPU()
-	step := len(x) / n
-	silu := func(offset, size int) {
+	vectorParallel(len(x), runtime.NumCPU(), func(_, offset, size int) {
 		for i := 0; i < size; i++ {
 			idx := offset + i
 			x[idx] *= Sigmoid(x[idx])
 		}
-	}
-	var wg sync.WaitGroup
-	wg.Add(n)
-	for i := 0; i < n; i++ {
-		offset := i * step
-		if i == n-1 {
-			step = len(x) - offset
-		}
-		go func(offset, step int) {
-			defer wg.Done()
-			silu(offset, step)
-		}(offset, step)
-	}
-	wg.Wait()
+	})
 }
 
 func Sigmoid(x float32) float32 {
@@ -217,89 +125,62 @@ func Sigmoid(x float32) float32 {
 
 // Mul x * w => x
 func Mul(x, w []float32) {
-	n := runtime.NumCPU()
-	step := len(x) / n
-	mul := func(offset, size int) {
+	vectorParallel(len(x), runtime.NumCPU(), func(_, offset, size int) {
 		for i := 0; i < size; i++ {
 			idx := offset + i
 			x[idx] *= w[idx]
 		}
-	}
-	var wg sync.WaitGroup
-	wg.Add(n)
-	for i := 0; i < n; i++ {
-		offset := i * step
-		if i == n-1 {
-			step = len(x) - offset
-		}
-		go func(offset, step int) {
-			defer wg.Done()
-			mul(offset, step)
-		}(offset, step)
-	}
-	wg.Wait()
+	})
 }
 
 // ROPE code from https://github.com/karpathy/llama2.c/blob/master/run.c#L265
 func ROPE(q, k []float32, cursor, headSize int64) {
-	n := runtime.NumCPU()
-	step := len(q) / n / 2
-	rope := func(offset, size int) {
-		for i := 0; i < size; i += 2 {
-			headDim := int64(offset+i) % headSize
+	set := func(x []float32, i int, fcr, fci float64) {
+		if i >= len(x) {
+			return
+		}
+		v0 := x[i]
+		v1 := x[i+1]
+		x[i] = float32(fcr*float64(v0) - fci*float64(v1))
+		x[i+1] = float32(fcr*float64(v1) + fci*float64(v0))
+	}
+	vectorParallel(len(q)/2, runtime.NumCPU(), func(_, offset, size int) {
+		for i := 0; i < size; i++ {
+			idx := (offset + i) * 2
+			headDim := int64(idx) % headSize
 			freq := 1 / math.Pow(10000, float64(headDim)/float64(headSize))
 			val := float64(cursor) * freq
-			fcr := float32(math.Cos(val))
-			fci := float32(math.Sin(val))
-			set := func(x []float32) {
-				idx := offset + i
-				if idx >= len(x) {
-					return
-				}
-				v0 := x[i]
-				v1 := x[i+1]
-				x[i] = float32(fcr*v0 - fci*v1)
-				x[i+1] = float32(fcr*v1 + fci*v0)
-			}
-			set(q)
-			set(k)
+			fcr := math.Cos(val)
+			fci := math.Sin(val)
+			set(q, idx, fcr, fci)
+			set(k, idx, fcr, fci)
 		}
-	}
-	var wg sync.WaitGroup
-	wg.Add(n)
-	for i := 0; i < n; i++ {
-		offset := i * step * 2
-		if i == n-1 {
-			step = (len(q) - offset) / 2
-		}
-		go func(offset, step int) {
-			defer wg.Done()
-			rope(offset, step)
-		}(offset, step*2)
-	}
-	wg.Wait()
+	})
 }
 
 // Add x + w => x
 func Add(x, w []float32) {
-	n := runtime.NumCPU()
-	step := len(x) / n
-	add := func(offset, size int) {
+	vectorParallel(len(x), runtime.NumCPU(), func(_, offset, size int) {
 		for i := 0; i < size; i++ {
 			idx := offset + i
 			x[idx] += w[idx]
 		}
-	}
+	})
+}
+
+func vectorParallel(size, batches int, fn func(batch, offset, size int)) {
+	step := size / batches
 	var wg sync.WaitGroup
-	wg.Add(n)
-	for i := 0; i < n; i++ {
+	wg.Add(batches)
+	for i := 0; i < batches; i++ {
 		offset := i * step
-		if i == n-1 {
-			step = len(x) - offset
+		if i == batches-1 {
+			step = size - offset
 		}
-		go func(offset, step int) {
+		go func(i, offset, step int) {
 			defer wg.Done()
-			add(offset, step)
-		}(offset, step)
+			fn(i, offset, step)
+		}(i, offset, step)
 	}
+	wg.Wait()
 }
