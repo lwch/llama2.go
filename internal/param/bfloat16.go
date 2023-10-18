@@ -22,13 +22,13 @@ func NewBF16(modelDir, fileName string, shapes []int64) *BF16 {
 func (bf16 *BF16) decode(data []uint16) []float32 {
 	ret := make([]float32, len(data))
 	n := runtime.NumCPU()
-	decode := func(batch []float32, offset int) {
+	decode := func(offset, size int) {
 		var wg sync.WaitGroup
-		wg.Add(len(batch))
-		for i := 0; i < len(batch); i++ {
+		wg.Add(size)
+		for i := 0; i < size; i++ {
 			go func(i int) {
 				defer wg.Done()
-				batch[i] = decodeBFloat16(data[i+offset])
+				ret[offset+i] = decodeBFloat16(data[i+offset])
 			}(i)
 		}
 		wg.Wait()
@@ -37,8 +37,7 @@ func (bf16 *BF16) decode(data []uint16) []float32 {
 		if i+n >= len(data) {
 			n = len(data) - i
 		}
-		batch := ret[i : i+n]
-		decode(batch, i)
+		decode(i, n)
 	}
 	return ret
 }
