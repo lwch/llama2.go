@@ -6,8 +6,8 @@ Port of Facebook's LLaMA model in pure go and use little memory.
 
 | Model | Precision | Memory | Memory(Cached Params) |
 | ----- | --------- | ------ | --------------------- |
-| 7B  | bf16 | 600M+ | 25G+ |
-| 13B | bf16 | 1G+ | 43G+ |
+| 7B  | bf16 | 600M+ | 17G+ |
+| 13B | bf16 | 1G+ | 32G+ |
 | 70B | bf16 | 3G+ | untest |
 
 ## usage
