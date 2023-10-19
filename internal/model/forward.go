@@ -31,7 +31,7 @@ func (m *Model) NewContext(cacheParam bool) *Context {
 	headDim := m.embeddingDim / m.heads
 	qDim := m.heads * headDim
 	kvDim := m.kvHeads * headDim
-	dim2 := m.ffnW1[0].Shapes()[1]
+	dim2 := m.ffnW1[0].Shapes()[0]
 	return &Context{
 		cacheK:     make([][]float32, m.layers),
 		cacheV:     make([][]float32, m.layers),
@@ -84,11 +84,9 @@ func (m *Model) Forward(ctx *Context, tk uint64, cursor int64) ([]float32, error
 	// rmsnorm
 	math.RMSNorm(ctx.x, norm, ctx.dx, m.eps) // (1, dim)
 
-	vocabSize := m.output.Shapes()[1]
-
 	// y @ output
 	// (1, dim) @ (dim, vocab_size) => (1, vocab_size)
-	math.MatMul(ctx.dx, output, 1, vocabSize, m.embeddingDim, ctx.y) // (1, vocab_size)
+	math.MatMul(ctx.dx, output, 1, m.vocabSize, m.embeddingDim, ctx.y) // (1, vocab_size)
 
 	return ctx.y, nil
 }
@@ -205,11 +203,11 @@ func (m *Model) feedForward(ctx *Context, x []float32, layer int) error {
 		return fmt.Errorf("load layer%d.feed_forward_norm: %v", layer, err)
 	}
 
-	if m.ffnW1[layer].Shapes()[1] != m.ffnW3[layer].Shapes()[1] ||
-		m.ffnW1[layer].Shapes()[1] != m.ffnW2[layer].Shapes()[0] {
+	if m.ffnW1[layer].Shapes()[0] != m.ffnW3[layer].Shapes()[0] ||
+		m.ffnW1[layer].Shapes()[0] != m.ffnW2[layer].Shapes()[1] {
 		return fmt.Errorf("invalid feed forward weight shape")
 	}
-	dim2 := m.ffnW1[layer].Shapes()[1]
+	dim2 := m.ffnW1[layer].Shapes()[0]
 
 	math.RMSNorm(x, norm, ctx.dx, m.eps) // (1, dim)
 
