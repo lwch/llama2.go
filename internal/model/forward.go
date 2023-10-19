@@ -14,6 +14,7 @@ type Context struct {
 	qDim       int64
 	kvDim      int64
 	cacheParam bool
+	fp32       bool
 	// global
 	x  []float32
 	dx []float32
@@ -27,14 +28,20 @@ type Context struct {
 	ffnY              []float32
 }
 
-func (m *Model) NewContext(cacheParam bool) *Context {
+func (m *Model) NewContext(cacheParam, fp32 bool) *Context {
 	headDim := m.embeddingDim / m.heads
 	qDim := m.heads * headDim
 	kvDim := m.kvHeads * headDim
 	dim2 := m.ffnW1[0].Shapes()[0]
+	cacheK := make([][]float32, m.layers)
+	cacheV := make([][]float32, m.layers)
+	for i := range cacheK {
+		cacheK[i] = make([]float32, 0, 2048*kvDim)
+		cacheV[i] = make([]float32, 0, 2048*kvDim)
+	}
 	return &Context{
-		cacheK:     make([][]float32, m.layers),
-		cacheV:     make([][]float32, m.layers),
+		cacheK:     cacheK,
+		cacheV:     cacheV,
 		headDim:    headDim,
 		qDim:       qDim,
 		kvDim:      kvDim,
@@ -72,11 +79,11 @@ func (m *Model) Forward(ctx *Context, tk uint64, cursor int64) ([]float32, error
 		}
 	}
 
-	norm, err := m.norm.Load(ctx.cacheParam) // (dim)
+	norm, err := m.norm.Load(ctx.cacheParam, ctx.fp32) // (dim)
 	if err != nil {
 		return nil, fmt.Errorf("load norm: %v", err)
 	}
-	output, err := m.output.Load(ctx.cacheParam) // (dim, vocab_size)
+	output, err := m.output.Load(ctx.cacheParam, ctx.fp32) // (dim, vocab_size)
 	if err != nil {
 		return nil, fmt.Errorf("load output: %v", err)
 	}
@@ -93,23 +100,23 @@ func (m *Model) Forward(ctx *Context, tk uint64, cursor int64) ([]float32, error
 
 func (m *Model) attention(ctx *Context, layer int, x []float32, cursor int64) error {
 	seqlen := cursor + 1
-	wq, err := m.attentionWQ[layer].Load(ctx.cacheParam) // (dim, q_dim)
+	wq, err := m.attentionWQ[layer].Load(ctx.cacheParam, ctx.fp32) // (dim, q_dim)
 	if err != nil {
 		return fmt.Errorf("load layer%d.attention_wq: %v", layer, err)
 	}
-	wk, err := m.attentionWK[layer].Load(ctx.cacheParam) // (dim, kv_dim)
+	wk, err := m.attentionWK[layer].Load(ctx.cacheParam, ctx.fp32) // (dim, kv_dim)
 	if err != nil {
 		return fmt.Errorf("load layer%d.attention_wk: %v", layer, err)
 	}
-	wv, err := m.attentionWV[layer].Load(ctx.cacheParam) // (dim, kv_dim)
+	wv, err := m.attentionWV[layer].Load(ctx.cacheParam, ctx.fp32) // (dim, kv_dim)
 	if err != nil {
 		return fmt.Errorf("load layer%d.attention_wv: %v", layer, err)
 	}
-	wo, err := m.attentionWO[layer].Load(ctx.cacheParam) // (dim, dim)
+	wo, err := m.attentionWO[layer].Load(ctx.cacheParam, ctx.fp32) // (dim, dim)
 	if err != nil {
 		return fmt.Errorf("load layer%d.attention_wo: %v", layer, err)
 	}
-	norm, err := m.attentionNorm[layer].Load(ctx.cacheParam) // (dim)
+	norm, err := m.attentionNorm[layer].Load(ctx.cacheParam, ctx.fp32) // (dim)
 	if err != nil {
 		return fmt.Errorf("load layer%d.attention_norm: %v", layer, err)
 	}
@@ -117,9 +124,21 @@ func (m *Model) attention(ctx *Context, layer int, x []float32, cursor int64) er
 	math.RMSNorm(x, norm, ctx.dx, m.eps) // (1, dim)
 
 	// compute q, k, v vector
-	math.MatMul(ctx.dx, wq, 1, ctx.qDim, m.embeddingDim, ctx.attnQ)  // (1, q_dim)
-	math.MatMul(ctx.dx, wk, 1, ctx.kvDim, m.embeddingDim, ctx.attnK) // (1, kv_dim)
-	math.MatMul(ctx.dx, wv, 1, ctx.kvDim, m.embeddingDim, ctx.attnV) // (1, kv_dim)
+	var wg sync.WaitGroup
+	wg.Add(3)
+	go func() {
+		defer wg.Done()
+		math.MatMul(ctx.dx, wq, 1, ctx.qDim, m.embeddingDim, ctx.attnQ) // (1, q_dim)
+	}()
+	go func() {
+		defer wg.Done()
+		math.MatMul(ctx.dx, wk, 1, ctx.kvDim, m.embeddingDim, ctx.attnK) // (1, kv_dim)
+	}()
+	go func() {
+		defer wg.Done()
+		math.MatMul(ctx.dx, wv, 1, ctx.kvDim, m.embeddingDim, ctx.attnV) // (1, kv_dim)
+	}()
+	wg.Wait()
 	clear(ctx.dx)
 
 	math.ROPE(ctx.attnQ, ctx.attnK, cursor, ctx.headDim)
@@ -132,28 +151,23 @@ func (m *Model) attention(ctx *Context, layer int, x []float32, cursor int64) er
 
 	// attention
 	scale := math2.Sqrt(float64(ctx.headDim))
-	var wgHeads sync.WaitGroup
-	wgHeads.Add(int(m.heads))
+	wg.Add(int(m.heads))
 	for head := int64(0); head < m.heads; head++ {
 		go func(head int64) {
-			defer wgHeads.Done()
+			defer wg.Done()
+
+			headIdx := head * ctx.headDim
 
 			// q @ k^T
 			// (1, head_dim) @ (head_dim, seqlen) => (1, seqlen)
-			q := ctx.attnQ[head*ctx.headDim : (head+1)*ctx.headDim] // (1, head_dim)
-			score := ctx.scores[head][:seqlen]                      // (seqlen)
-			var wg sync.WaitGroup
-			wg.Add(int(seqlen))
+			q := ctx.attnQ[headIdx : headIdx+ctx.headDim] // (1, head_dim)
+			score := ctx.scores[head][:seqlen]            // (seqlen)
 			for cursor := int64(0); cursor < seqlen; cursor++ {
-				go func(cursor int64) {
-					defer wg.Done()
-					idx := cursor * m.kvHeads * ctx.headDim
-					k := attnK[idx+(head%m.kvHeads)*ctx.headDim : idx+((head%m.kvHeads)+1)*ctx.headDim] // (head_dim, 1), repeat k if kv_heads < heads
-					math.MatMul(q, k, 1, 1, ctx.headDim, score[cursor:cursor+1])                        // (1, head_size) @ (head_size, 1) => (1)
-					score[cursor] /= float32(scale)
-				}(cursor)
+				idx := cursor*m.kvHeads*ctx.headDim + (head%m.kvHeads)*ctx.headDim
+				k := attnK[idx : idx+ctx.headDim]                            // (head_dim, 1), repeat k if kv_heads < heads
+				math.MatMul(q, k, 1, 1, ctx.headDim, score[cursor:cursor+1]) // (1, head_size) @ (head_size, 1) => (1)
+				score[cursor] /= float32(scale)
 			}
-			wg.Wait()
 
 			// softmax
 			// (seqlen)
@@ -161,20 +175,15 @@ func (m *Model) attention(ctx *Context, layer int, x []float32, cursor int64) er
 
 			// score @ v
 			// (seqlen) @ (seqlen, head_dim) => (head_dim)
-			wg.Add(int(seqlen * ctx.headDim))
 			for cursor := int64(0); cursor < seqlen; cursor++ {
 				idx := cursor * m.kvHeads * ctx.headDim
 				for dim := int64(0); dim < ctx.headDim; dim++ {
-					go func(cursor, dim int64) {
-						defer wg.Done()
-						ctx.dx[head*ctx.headDim+dim] += score[cursor] * attnV[idx+(head%m.kvHeads)*ctx.headDim+dim] // repeat v if kv_heads < heads
-					}(cursor, dim)
+					ctx.dx[head*ctx.headDim+dim] += score[cursor] * attnV[idx+(head%m.kvHeads)*ctx.headDim+dim] // repeat v if kv_heads < heads
 				}
 			}
-			wg.Wait()
 		}(head)
 	}
-	wgHeads.Wait()
+	wg.Wait()
 
 	// dx @ wo
 	// (1, dim) @ (dim, dim) => (1, dim)
@@ -186,19 +195,19 @@ func (m *Model) attention(ctx *Context, layer int, x []float32, cursor int64) er
 }
 
 func (m *Model) feedForward(ctx *Context, x []float32, layer int) error {
-	w1, err := m.ffnW1[layer].Load(ctx.cacheParam) // (dim, dim2)
+	w1, err := m.ffnW1[layer].Load(ctx.cacheParam, ctx.fp32) // (dim, dim2)
 	if err != nil {
 		return fmt.Errorf("load layer%d.feed_forward_w1: %v", layer, err)
 	}
-	w2, err := m.ffnW2[layer].Load(ctx.cacheParam) // (dim2, dim)
+	w2, err := m.ffnW2[layer].Load(ctx.cacheParam, ctx.fp32) // (dim2, dim)
 	if err != nil {
 		return fmt.Errorf("load layer%d.feed_forward_w2: %v", layer, err)
 	}
-	w3, err := m.ffnW3[layer].Load(ctx.cacheParam) // (dim, dim2)
+	w3, err := m.ffnW3[layer].Load(ctx.cacheParam, ctx.fp32) // (dim, dim2)
 	if err != nil {
 		return fmt.Errorf("load layer%d.feed_forward_w3: %v", layer, err)
 	}
-	norm, err := m.ffnNorm[layer].Load(ctx.cacheParam) // (dim)
+	norm, err := m.ffnNorm[layer].Load(ctx.cacheParam, ctx.fp32) // (dim)
 	if err != nil {
 		return fmt.Errorf("load layer%d.feed_forward_norm: %v", layer, err)
 	}
@@ -211,17 +220,28 @@ func (m *Model) feedForward(ctx *Context, x []float32, layer int) error {
 
 	math.RMSNorm(x, norm, ctx.dx, m.eps) // (1, dim)
 
-	// dx @ w1
-	// (1, dim) @ (dim, dim2) => (1, dim2)
-	math.MatMul(ctx.dx, w1, 1, dim2, m.embeddingDim, ctx.ffnLeft) // (1, dim2)
+	var wg sync.WaitGroup
+	wg.Add(2)
+
+	go func() {
+		defer wg.Done()
+		// dx @ w1
+		// (1, dim) @ (dim, dim2) => (1, dim2)
+		math.MatMul(ctx.dx, w1, 1, dim2, m.embeddingDim, ctx.ffnLeft) // (1, dim2)
+
+		// silu for y1
+		// (1, dim2)
+		math.SiLU(ctx.ffnLeft) // (1, dim2)
+	}()
 
 	// dx @ w3
 	// (1, dim) @ (dim, dim2) => (1, dim2)
-	math.MatMul(ctx.dx, w3, 1, dim2, m.embeddingDim, ctx.ffnRight) // (1, dim2)
+	go func() {
+		defer wg.Done()
+		math.MatMul(ctx.dx, w3, 1, dim2, m.embeddingDim, ctx.ffnRight) // (1, dim2)
+	}()
 
-	// silu for y1
-	// (1, dim2)
-	math.SiLU(ctx.ffnLeft) // (1, dim2)
+	wg.Wait()
 
 	// y1 * y2
 	// (1, dim2) * (1, dim2) => (1, dim2)

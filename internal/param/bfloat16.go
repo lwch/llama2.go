@@ -8,7 +8,8 @@ import (
 
 type BF16 struct {
 	base
-	data []uint16
+	dataHalf []uint16
+	dataFP32 []float32
 }
 
 var _ Param = &BF16{}
@@ -44,21 +45,32 @@ func (bf16 *BF16) decode(data []uint16) []float32 {
 	return ret
 }
 
-func (bf16 *BF16) Warmup() error {
-	if bf16.data != nil {
+func (bf16 *BF16) Warmup(fp32 bool) error {
+	if bf16.dataHalf != nil {
 		return nil
 	}
-	bf16.data = make([]uint16, bf16.ElemCount())
-	err := bf16.load(bf16.data)
+	if bf16.dataFP32 != nil {
+		return nil
+	}
+	data := make([]uint16, bf16.ElemCount())
+	err := bf16.load(data)
 	if err != nil {
 		return err
 	}
+	if fp32 {
+		bf16.dataFP32 = bf16.decode(data)
+		return nil
+	}
+	bf16.dataHalf = data
 	return nil
 }
 
-func (bf16 *BF16) Load(cache bool) ([]float32, error) {
-	if cache && bf16.data != nil {
-		return bf16.decode(bf16.data), nil
+func (bf16 *BF16) Load(cache, fp32 bool) ([]float32, error) {
+	if bf16.dataFP32 != nil {
+		return bf16.dataFP32, nil
+	}
+	if bf16.dataHalf != nil {
+		return bf16.decode(bf16.dataHalf), nil
 	}
 	raw := make([]uint16, bf16.ElemCount())
 	err := bf16.load(raw)
@@ -66,7 +78,12 @@ func (bf16 *BF16) Load(cache bool) ([]float32, error) {
 		return nil, err
 	}
 	if cache {
-		bf16.data = raw
+		if fp32 {
+			bf16.dataFP32 = bf16.decode(raw)
+			return bf16.dataFP32, nil
+		}
+		bf16.dataHalf = raw
+		return bf16.decode(raw), nil
 	}
 	return bf16.decode(raw), nil
 }

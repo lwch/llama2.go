@@ -42,6 +42,7 @@ func main() {
 
 	textCompletionCmd.Flags().StringVarP(&cmd.ModelDir, "model", "m", "./models", "model directory")
 	textCompletionCmd.Flags().BoolVar(&cmd.CacheParam, "cache", false, "cache param in memory")
+	textCompletionCmd.Flags().BoolVar(&cmd.FP32, "fp32", false, "cache param use fp32")
 	textCompletionCmd.Flags().IntVar(&cmd.MaxInferenceLength, "max-length", 16, "max inference length")
 	textCompletionCmd.Flags().Float32VarP(&cmd.Temperature, "temperature", "t", 0.6, "temperature")
 	textCompletionCmd.Flags().Float32VarP(&cmd.TopP, "top-p", "p", 0.9, "top p")
@@ -50,6 +51,7 @@ func main() {
 
 	chatCmd.Flags().StringVarP(&cmd.ModelDir, "model", "m", "./models", "model directory")
 	chatCmd.Flags().BoolVar(&cmd.CacheParam, "cache", false, "cache param in memory")
+	chatCmd.Flags().BoolVar(&cmd.FP32, "fp32", false, "cache param use fp32")
 	chatCmd.Flags().Float32VarP(&cmd.Temperature, "temperature", "t", 0.6, "temperature")
 	chatCmd.Flags().Float32VarP(&cmd.TopP, "top-p", "p", 0.9, "top p")
 	runtime.Assert(chatCmd.MarkFlagRequired("model"))

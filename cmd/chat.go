@@ -27,14 +27,14 @@ func Chat(*cobra.Command, []string) {
 
 	if CacheParam {
 		logging.Info("warm up model...")
-		md.WarmUP()
+		md.WarmUP(FP32)
 		logging.Info("warm up done")
 	}
 
 	tk := md.GetTokenizer()
 	samp := sampler.New(Temperature, TopP)
 
-	ctx := md.NewContext(false)
+	ctx := md.NewContext(CacheParam, FP32)
 	var system, user string
 	var nextToken int64
 	var tks []uint64

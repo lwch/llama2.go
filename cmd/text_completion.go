@@ -16,6 +16,7 @@ import (
 
 var ModelDir string
 var CacheParam bool
+var FP32 bool
 var MaxInferenceLength int
 var Temperature float32
 var TopP float32
@@ -28,7 +29,7 @@ func TextCompletion(*cobra.Command, []string) {
 
 	if CacheParam {
 		logging.Info("warm up model...")
-		md.WarmUP()
+		md.WarmUP(FP32)
 		logging.Info("warm up done")
 	}
 
@@ -42,7 +43,10 @@ func TextCompletion(*cobra.Command, []string) {
 
 	samp := sampler.New(Temperature, TopP)
 
-	ctx := md.NewContext(CacheParam)
+	ctx := md.NewContext(CacheParam, FP32)
+
+	// go profile()
+
 	var cursor int64
 	var nextToken uint64
 	for _, token := range tks {
