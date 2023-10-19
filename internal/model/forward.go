@@ -4,8 +4,11 @@ import (
 	"fmt"
 	"llama2/internal/math"
 	math2 "math"
+	"runtime"
 	"sync"
 )
+
+const maxInferenceLength = 2048 // max inference length of LLAMA2
 
 type Context struct {
 	cacheK     [][]float32
@@ -21,7 +24,7 @@ type Context struct {
 	y  []float32
 	// attention
 	attnQ, attnK, attnV []float32
-	scores              [][2048]float32 // max of llama sequence length
+	scores              [][maxInferenceLength]float32
 	attnY               []float32
 	// ffn
 	ffnLeft, ffnRight []float32
@@ -36,8 +39,8 @@ func (m *Model) NewContext(cacheParam, fp32 bool) *Context {
 	cacheK := make([][]float32, m.layers)
 	cacheV := make([][]float32, m.layers)
 	for i := range cacheK {
-		cacheK[i] = make([]float32, 0, 2048*kvDim)
-		cacheV[i] = make([]float32, 0, 2048*kvDim)
+		cacheK[i] = make([]float32, maxInferenceLength*kvDim)
+		cacheV[i] = make([]float32, maxInferenceLength*kvDim)
 	}
 	return &Context{
 		cacheK:     cacheK,
@@ -54,7 +57,7 @@ func (m *Model) NewContext(cacheParam, fp32 bool) *Context {
 		attnQ:  make([]float32, qDim),
 		attnK:  make([]float32, kvDim),
 		attnV:  make([]float32, kvDim),
-		scores: make([][2048]float32, m.heads),
+		scores: make([][maxInferenceLength]float32, m.heads),
 		attnY:  make([]float32, m.embeddingDim),
 		// ffn
 		ffnLeft:  make([]float32, dim2),
@@ -68,7 +71,7 @@ func (m *Model) Forward(ctx *Context, tk uint64, cursor int64) ([]float32, error
 	if err != nil {
 		return nil, err
 	}
-	for layer := 0; layer < m.layers; layer++ {
+	for layer := int64(0); layer < m.layers; layer++ {
 		err = m.attention(ctx, layer, ctx.x, cursor)
 		if err != nil {
 			return nil, err
@@ -98,7 +101,7 @@ func (m *Model) Forward(ctx *Context, tk uint64, cursor int64) ([]float32, error
 	return ctx.y, nil
 }
 
-func (m *Model) attention(ctx *Context, layer int, x []float32, cursor int64) error {
+func (m *Model) attention(ctx *Context, layer int64, x []float32, cursor int64) error {
 	seqlen := cursor + 1
 	wq, err := m.attentionWQ[layer].Load(ctx.cacheParam, ctx.fp32) // (dim, q_dim)
 	if err != nil {
@@ -144,10 +147,11 @@ func (m *Model) attention(ctx *Context, layer int, x []float32, cursor int64) er
 	math.ROPE(ctx.attnQ, ctx.attnK, cursor, ctx.headDim)
 
 	// append cache
-	attnK := append(ctx.cacheK[layer], ctx.attnK...) // (seqlen, kv_dim)
-	attnV := append(ctx.cacheV[layer], ctx.attnV...) // (seqlen, kv_dim)
-	ctx.cacheK[layer] = attnK
-	ctx.cacheV[layer] = attnV
+	idx := cursor * ctx.kvDim
+	copy(ctx.cacheK[layer][idx:idx+ctx.kvDim], ctx.attnK)
+	copy(ctx.cacheV[layer][idx:idx+ctx.kvDim], ctx.attnV)
+	attnK := ctx.cacheK[layer][:seqlen*ctx.kvDim] // (seqlen, kv_dim)
+	attnV := ctx.cacheV[layer][:seqlen*ctx.kvDim] // (seqlen, kv_dim)
 
 	// attention
 	scale := math2.Sqrt(float64(ctx.headDim))
@@ -155,6 +159,7 @@ func (m *Model) attention(ctx *Context, layer int, x []float32, cursor int64) er
 	for head := int64(0); head < m.heads; head++ {
 		go func(head int64) {
 			defer wg.Done()
+			defer runtime.GC()
 
 			headIdx := head * ctx.headDim
 
@@ -194,7 +199,7 @@ func (m *Model) attention(ctx *Context, layer int, x []float32, cursor int64) er
 	return nil
 }
 
-func (m *Model) feedForward(ctx *Context, x []float32, layer int) error {
+func (m *Model) feedForward(ctx *Context, x []float32, layer int64) error {
 	w1, err := m.ffnW1[layer].Load(ctx.cacheParam, ctx.fp32) // (dim, dim2)
 	if err != nil {
 		return fmt.Errorf("load layer%d.feed_forward_w1: %v", layer, err)

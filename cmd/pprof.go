@@ -18,3 +18,13 @@ func profile() {
 	f.Close()
 	os.Exit(0)
 }
+
+func memProfile() {
+	f, err := os.Create("mem.pprof")
+	runtime.Assert(err)
+	defer f.Close()
+	runtime.Assert(pprof.WriteHeapProfile(f))
+	f.Close()
+	// os.Exit(0)
+	time.Sleep(time.Hour)
+}

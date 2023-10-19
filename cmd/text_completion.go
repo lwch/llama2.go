@@ -32,6 +32,7 @@ func TextCompletion(*cobra.Command, []string) {
 		md.WarmUP(FP32)
 		logging.Info("warm up done")
 	}
+	// memProfile()
 
 	tk := md.GetTokenizer()
 
@@ -51,6 +52,7 @@ func TextCompletion(*cobra.Command, []string) {
 	for _, token := range tks {
 		begin := time.Now()
 		scores, err := md.Forward(ctx, token, cursor)
+		// memProfile()
 		cost := time.Since(begin)
 		runtime.Assert(err)
 		nextToken = samp.Sample(scores)

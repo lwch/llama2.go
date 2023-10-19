@@ -22,7 +22,7 @@ type Model struct {
 	output          param.Param
 	embeddingDim    int64
 	vocabSize       int64
-	layers          int
+	layers          int64
 	heads           int64
 	kvHeads         int64
 	eps             float32

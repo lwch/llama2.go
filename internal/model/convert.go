@@ -30,7 +30,7 @@ func Convert(ckpts []*checkpoint.Model, params *Params, tokenizer, output string
 	params.Params = make(map[string]ParamInfo)
 	key := "tok_embeddings.weight"
 	params.Params[key] = writeParam(ckpts, zw, key, true)
-	for i := 0; i < params.Layers; i++ {
+	for i := int64(0); i < params.Layers; i++ {
 		key = fmt.Sprintf("layers.%d.attention.wq.weight", i)
 		params.Params[key] = writeParam(ckpts, zw, key, false)
 		key = fmt.Sprintf("layers.%d.attention.wk.weight", i)
