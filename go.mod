@@ -9,6 +9,7 @@ require (
 	github.com/lwch/sentencepiece v0.0.0-20231016033630-40651f88a030
 	github.com/nlpodyssey/gopickle v0.2.0
 	github.com/spf13/cobra v1.7.0
+	gonum.org/v1/gonum v0.14.0
 )
 
 require (
