@@ -121,13 +121,13 @@ func loadTokenizer(zr *zip.Reader) *sentencepiece.Model {
 	return tokenizer
 }
 
-func (m *Model) WarmUP() {
+func (m *Model) WarmUP(fp32 bool) {
 	var wg sync.WaitGroup
 	load := func(p param.Param) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			p.Warmup()
+			p.Warmup(fp32)
 		}()
 	}
 	load(m.embeddingWeight)

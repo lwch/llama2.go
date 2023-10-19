@@ -17,8 +17,8 @@ type Param interface {
 	Shapes() []int64
 	ElemCount() int64
 	Dims() int64
-	Warmup() error
-	Load(cache bool) ([]float32, error)
+	Warmup(fp32 bool) error
+	Load(cache, fp32 bool) ([]float32, error)
 	LoadBatch(uint64, []float32) error
 }
 
