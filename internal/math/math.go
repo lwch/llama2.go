@@ -4,59 +4,32 @@ import (
 	"math"
 	"runtime"
 	"sync"
+
+	"gonum.org/v1/gonum/blas"
+	"gonum.org/v1/gonum/blas/blas32"
 )
 
 // MatMul (m, d) @ (d, n) => (m, n)
 func MatMul(x, w []float32, m, n, d int64, output []float32) {
-	if m > n {
-		rowParallelMatMul(x, w, m, n, d, output)
-	} else {
-		colParallelMatMul(x, w, m, n, d, output)
+	bx := blas32.General{
+		Rows:   int(m),
+		Cols:   int(d),
+		Stride: int(d),
+		Data:   x,
 	}
-}
-
-func rowParallelMatMul(x, w []float32, m, n, d int64, output []float32) {
-	var wg sync.WaitGroup
-	wg.Add(int(m))
-	for row := int64(0); row < m; row++ {
-		go func(row int64) {
-			defer wg.Done()
-			wi := int64(0)
-			for col := int64(0); col < n; col++ {
-				var dx float32
-				xi := row * d
-				for i := int64(0); i < d; i++ {
-					dx += x[xi] * w[wi]
-					xi++
-					wi++
-				}
-				output[row*n+col] = dx
-			}
-		}(row)
+	bw := blas32.General{
+		Rows:   int(n),
+		Cols:   int(d),
+		Stride: int(d),
+		Data:   w,
 	}
-	wg.Wait()
-}
-
-func colParallelMatMul(x, w []float32, m, n, d int64, output []float32) {
-	var wg sync.WaitGroup
-	wg.Add(int(n))
-	for col := int64(0); col < n; col++ {
-		go func(col int64) {
-			defer wg.Done()
-			xi := int64(0)
-			for row := int64(0); row < m; row++ {
-				var dx float32
-				wi := col * d
-				for i := int64(0); i < d; i++ {
-					dx += x[xi] * w[wi]
-					xi++
-					wi++
-				}
-				output[row*n+col] = dx
-			}
-		}(col)
+	bout := blas32.General{
+		Rows:   int(m),
+		Cols:   int(n),
+		Stride: int(n),
+		Data:   output,
 	}
-	wg.Wait()
+	blas32.Gemm(blas.NoTrans, blas.Trans, 1, bx, bw, 0, bout)
 }
 
 func RMSNorm(x, w []float32, output []float32, eps float32) {

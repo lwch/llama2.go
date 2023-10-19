@@ -39,7 +39,6 @@ func TextCompletion(*cobra.Command, []string) {
 	runtime.Assert(err)
 	input = bytes.TrimSpace(input)
 	tks := tk.Encode(string(input), true, false)
-	prompt := len(tks)
 
 	samp := sampler.New(Temperature, TopP)
 
@@ -83,7 +82,5 @@ func TextCompletion(*cobra.Command, []string) {
 		tks = append(tks, nextToken)
 	}
 
-	fmt.Printf("[%s] ==> %s\n",
-		tk.Decode(tks[:prompt]),
-		tk.Decode(tks[prompt:]))
+	fmt.Println(tk.Decode(tks))
 }
