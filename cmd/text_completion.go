@@ -22,7 +22,12 @@ var Temperature float32
 var TopP float32
 
 func TextCompletion(*cobra.Command, []string) {
-	// go profile()
+	// done := cpuProfile()
+	// go func() {
+	// 	time.Sleep(time.Minute)
+	// 	done()
+	// 	os.Exit(0)
+	// }()
 	md := model.Load(ModelDir)
 	logging.Info("model loaded")
 	md.ShowInfo()
@@ -45,14 +50,13 @@ func TextCompletion(*cobra.Command, []string) {
 
 	ctx := md.NewContext(CacheParam, FP32)
 
-	// go profile()
+	inferenceBegin := time.Now()
 
 	var cursor int64
 	var nextToken uint64
 	for _, token := range tks {
 		begin := time.Now()
 		scores, err := md.Forward(ctx, token, cursor)
-		// memProfile()
 		cost := time.Since(begin)
 		runtime.Assert(err)
 		nextToken = samp.Sample(scores)
@@ -84,5 +88,8 @@ func TextCompletion(*cobra.Command, []string) {
 		tks = append(tks, nextToken)
 	}
 
+	fmt.Println("=====================================")
 	fmt.Println(tk.Decode(tks))
+
+	logging.Info("total cost: %s", time.Since(inferenceBegin))
 }

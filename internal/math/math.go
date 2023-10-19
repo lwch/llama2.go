@@ -1,9 +1,9 @@
 package math
 
 import (
+	"llama2/internal/utils"
 	"math"
 	"runtime"
-	"sync"
 
 	"gonum.org/v1/gonum/blas"
 	"gonum.org/v1/gonum/blas/blas32"
@@ -34,7 +34,7 @@ func MatMul(x, w []float32, m, n, d int64, output []float32) {
 
 func RMSNorm(x, w []float32, output []float32, eps float32) {
 	values := make([]float32, runtime.NumCPU())
-	vectorParallel(len(x), runtime.NumCPU(), func(batch, offset, size int) {
+	utils.Parallel(len(x), runtime.NumCPU(), func(batch, offset, size int) {
 		var sum float32
 		for i := 0; i < size; i++ {
 			idx := offset + i
@@ -49,7 +49,7 @@ func RMSNorm(x, w []float32, output []float32, eps float32) {
 	scale /= float32(len(x))
 	scale += eps
 	scale = 1 / float32(math.Sqrt(float64(scale)))
-	vectorParallel(len(x), runtime.NumCPU(), func(_, offset, size int) {
+	utils.Parallel(len(x), runtime.NumCPU(), func(_, offset, size int) {
 		for i := 0; i < size; i++ {
 			idx := offset + i
 			output[idx] = x[idx] * scale * w[idx]
@@ -59,7 +59,7 @@ func RMSNorm(x, w []float32, output []float32, eps float32) {
 
 func Softmax(x []float32, n int64) {
 	values := make([]float32, runtime.NumCPU())
-	vectorParallel(len(x), runtime.NumCPU(), func(batch, offset, size int) {
+	utils.Parallel(len(x), runtime.NumCPU(), func(batch, offset, size int) {
 		values[batch] = x[offset]
 		for i := 1; i < size; i++ {
 			idx := offset + i
@@ -75,7 +75,7 @@ func Softmax(x []float32, n int64) {
 		}
 	}
 	var sum float32
-	vectorParallel(len(x), runtime.NumCPU(), func(_, offset, size int) {
+	utils.Parallel(len(x), runtime.NumCPU(), func(_, offset, size int) {
 		for i := 0; i < size; i++ {
 			idx := offset + i
 			dx := float32(math.Exp(float64(x[idx] - max)))
@@ -83,7 +83,7 @@ func Softmax(x []float32, n int64) {
 			sum += dx
 		}
 	})
-	vectorParallel(len(x), runtime.NumCPU(), func(_, offset, size int) {
+	utils.Parallel(len(x), runtime.NumCPU(), func(_, offset, size int) {
 		for i := 0; i < size; i++ {
 			idx := offset + i
 			x[idx] /= sum
@@ -92,7 +92,7 @@ func Softmax(x []float32, n int64) {
 }
 
 func SiLU(x []float32) {
-	vectorParallel(len(x), runtime.NumCPU(), func(_, offset, size int) {
+	utils.Parallel(len(x), runtime.NumCPU(), func(_, offset, size int) {
 		for i := 0; i < size; i++ {
 			idx := offset + i
 			x[idx] *= Sigmoid(x[idx])
@@ -106,7 +106,7 @@ func Sigmoid(x float32) float32 {
 
 // Mul x * w => x
 func Mul(x, w []float32) {
-	vectorParallel(len(x), runtime.NumCPU(), func(_, offset, size int) {
+	utils.Parallel(len(x), runtime.NumCPU(), func(_, offset, size int) {
 		for i := 0; i < size; i++ {
 			idx := offset + i
 			x[idx] *= w[idx]
@@ -125,7 +125,7 @@ func ROPE(q, k []float32, cursor, headSize int64) {
 		x[i] = float32(fcr*float64(v0) - fci*float64(v1))
 		x[i+1] = float32(fcr*float64(v1) + fci*float64(v0))
 	}
-	vectorParallel(len(q)/2, runtime.NumCPU(), func(_, offset, size int) {
+	utils.Parallel(len(q)/2, runtime.NumCPU(), func(_, offset, size int) {
 		for i := 0; i < size; i++ {
 			idx := (offset + i) * 2
 			headDim := int64(idx) % headSize
@@ -141,27 +141,10 @@ func ROPE(q, k []float32, cursor, headSize int64) {
 
 // Add x + w => x
 func Add(x, w []float32) {
-	vectorParallel(len(x), runtime.NumCPU(), func(_, offset, size int) {
+	utils.Parallel(len(x), runtime.NumCPU(), func(_, offset, size int) {
 		for i := 0; i < size; i++ {
 			idx := offset + i
 			x[idx] += w[idx]
 		}
 	})
-}
-
-func vectorParallel(size, batches int, fn func(batch, offset, size int)) {
-	step := size / batches
-	var wg sync.WaitGroup
-	wg.Add(batches)
-	for i := 0; i < batches; i++ {
-		offset := i * step
-		if i == batches-1 {
-			step = size - offset
-		}
-		go func(i, offset, step int) {
-			defer wg.Done()
-			fn(i, offset, step)
-		}(i, offset, step)
-	}
-	wg.Wait()
 }
