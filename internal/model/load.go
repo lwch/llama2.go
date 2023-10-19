@@ -54,7 +54,7 @@ func Load(dir string) *Model {
 	md.ffnW2 = nil
 	md.ffnW3 = nil
 	md.ffnNorm = nil
-	for i := 0; i < params.Layers; i++ {
+	for i := int64(0); i < params.Layers; i++ {
 		loadLayerParam := func(name string) param.Param {
 			key := fmt.Sprintf("layers.%d.%s", i, name)
 			info, ok := params.Params[key]
@@ -130,7 +130,6 @@ func (m *Model) WarmUP(fp32 bool) {
 			p.Warmup(fp32)
 		}()
 	}
-	load(m.embeddingWeight)
 	for _, p := range m.attentionWQ {
 		load(p)
 	}
