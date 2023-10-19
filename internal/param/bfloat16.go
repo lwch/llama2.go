@@ -1,8 +1,8 @@
 package param
 
 import (
+	"llama2/internal/utils"
 	"runtime"
-	"sync"
 	"unsafe"
 )
 
@@ -22,26 +22,11 @@ func NewBF16(modelDir, fileName string, shapes []int64) *BF16 {
 
 func (bf16 *BF16) decode(data []uint16) []float32 {
 	ret := make([]float32, len(data))
-	decode := func(offset, size int) {
+	utils.Parallel(len(data), runtime.NumCPU(), func(_, offset, size int) {
 		for i := 0; i < size; i++ {
-			ret[offset+i] = decodeBFloat16(data[offset+i])
+			decodeBFloat16(&ret[offset+i], data[offset+i])
 		}
-	}
-	n := runtime.NumCPU()
-	step := len(data) / n
-	var wg sync.WaitGroup
-	wg.Add(n)
-	for i := 0; i < n; i++ {
-		offset := i * step
-		if i == n-1 {
-			step = len(data) - offset
-		}
-		go func(offset, step int) {
-			defer wg.Done()
-			decode(offset, step)
-		}(offset, step)
-	}
-	wg.Wait()
+	})
 	return ret
 }
 
@@ -103,7 +88,7 @@ func (bf16 *BF16) LoadBatch(n uint64, data []float32) error {
 	}
 	raw = raw[n*uint64(batchSize):]
 	for i, v := range raw {
-		data[i] = decodeBFloat16(v)
+		decodeBFloat16(&data[i], v)
 	}
 	return nil
 }
@@ -113,7 +98,7 @@ func encodeBFloat16(f float32) uint16 {
 	return uint16(n >> 16)
 }
 
-func decodeBFloat16(u16 uint16) float32 {
-	n := uint32(u16) << 16
-	return *(*float32)(unsafe.Pointer(&n))
+func decodeBFloat16(p *float32, u16 uint16) {
+	u32 := (*uint32)(unsafe.Pointer(p))
+	*u32 = uint32(u16) << 16
 }
