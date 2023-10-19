@@ -21,12 +21,16 @@ func rowParallelMatMul(x, w []float32, m, n, d int64, output []float32) {
 	for row := int64(0); row < m; row++ {
 		go func(row int64) {
 			defer wg.Done()
+			wi := int64(0)
 			for col := int64(0); col < n; col++ {
-				idx := row*n + col
-				output[idx] = 0
+				var dx float32
+				xi := row * d
 				for i := int64(0); i < d; i++ {
-					output[idx] += x[row*d+i] * w[col*d+i]
+					dx += x[xi] * w[wi]
+					xi++
+					wi++
 				}
+				output[row*n+col] = dx
 			}
 		}(row)
 	}
@@ -39,12 +43,16 @@ func colParallelMatMul(x, w []float32, m, n, d int64, output []float32) {
 	for col := int64(0); col < n; col++ {
 		go func(col int64) {
 			defer wg.Done()
+			xi := int64(0)
 			for row := int64(0); row < m; row++ {
-				idx := row*n + col
-				output[idx] = 0
+				var dx float32
+				wi := col * d
 				for i := int64(0); i < d; i++ {
-					output[idx] += x[row*d+i] * w[col*d+i]
+					dx += x[xi] * w[wi]
+					xi++
+					wi++
 				}
+				output[row*n+col] = dx
 			}
 		}(col)
 	}
