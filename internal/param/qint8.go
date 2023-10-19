@@ -3,6 +3,7 @@ package param
 import (
 	"bytes"
 	"encoding/binary"
+	"llama2/internal/utils"
 	"math"
 	rt "runtime"
 
@@ -14,7 +15,7 @@ func quantizeInt8(values []float32, groupSize int64) ([]byte, []byte) {
 	for i := range scale {
 		scale[i] = values[i*int(groupSize)]
 	}
-	parallel(len(values), rt.NumCPU(), func(_, offset, size int) {
+	utils.Parallel(len(values), rt.NumCPU(), func(_, offset, size int) {
 		for i := 0; i < size; i++ {
 			idx := offset + i
 			target := idx / int(groupSize)
@@ -27,7 +28,7 @@ func quantizeInt8(values []float32, groupSize int64) ([]byte, []byte) {
 		scale[i] /= 127
 	}
 	scaled := make([]int8, len(values))
-	parallel(len(values), rt.NumCPU(), func(_, offset, size int) {
+	utils.Parallel(len(values), rt.NumCPU(), func(_, offset, size int) {
 		for i := 0; i < size; i++ {
 			idx := offset + i
 			target := idx / int(groupSize)

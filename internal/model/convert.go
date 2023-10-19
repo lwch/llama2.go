@@ -164,8 +164,8 @@ func writeParamQuantize(ckpts []*checkpoint.Model, zw *zip.Writer, name string, 
 	})
 	runtime.Assert(err)
 
-	values, scale := param.Quantize(values, convertType, groupSize)
-	_, err = w.Write(append(values, scale...))
+	dt, scale := param.Quantize(values, convertType, groupSize)
+	_, err = w.Write(append(dt, scale...))
 	runtime.Assert(err)
 	return ParamInfo{
 		Type:  convertType,
