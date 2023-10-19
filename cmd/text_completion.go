@@ -21,6 +21,7 @@ var Temperature float32
 var TopP float32
 
 func TextCompletion(*cobra.Command, []string) {
+	// go profile()
 	md := model.Load(ModelDir)
 	logging.Info("model loaded")
 	md.ShowInfo()
