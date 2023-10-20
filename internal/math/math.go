@@ -32,6 +32,21 @@ func MatMul(x, w []float32, m, n, d int64, output []float32) {
 	blas32.Gemm(blas.NoTrans, blas.Trans, 1, bx, bw, 0, bout)
 }
 
+// AXPY y = a * x + y
+func Axpy(a float32, x, y []float32) {
+	bx := blas32.Vector{
+		N:    len(x),
+		Inc:  1,
+		Data: x,
+	}
+	by := blas32.Vector{
+		N:    len(y),
+		Inc:  1,
+		Data: y,
+	}
+	blas32.Axpy(a, bx, by)
+}
+
 func RMSNorm(x, w []float32, output []float32, eps float32) {
 	bx := blas32.Vector{
 		N:    len(x),
@@ -43,23 +58,24 @@ func RMSNorm(x, w []float32, output []float32, eps float32) {
 	scale += eps
 	scale = 1 / float32(math.Sqrt(float64(scale)))
 	utils.Parallel(len(x), runtime.NumCPU(), func(_, offset, size int) {
-		for i := 0; i < size; i++ {
-			idx := offset + i
-			output[idx] = scale * x[idx] * w[idx]
+		end := offset + size
+		for i := offset; i < end; i++ {
+			output[i] = scale * x[i] * w[i]
 		}
 	})
 }
 
 func Softmax(x []float32, n int64) {
 	values := make([]float32, runtime.NumCPU())
-	utils.Parallel(len(x), runtime.NumCPU(), func(batch, offset, size int) {
-		values[batch] = x[offset]
-		for i := 1; i < size; i++ {
-			idx := offset + i
-			if x[idx] > values[batch] {
-				values[batch] = x[idx]
+	utils.Parallel(int(n), runtime.NumCPU(), func(batch, offset, size int) {
+		max := x[offset]
+		end := offset + size
+		for i := offset + 1; i < end; i++ {
+			if x[i] > max {
+				max = x[i]
 			}
 		}
+		values[batch] = max
 	})
 	max := values[0]
 	for i := 1; i < len(values); i++ {
@@ -67,28 +83,34 @@ func Softmax(x []float32, n int64) {
 			max = values[i]
 		}
 	}
-	var sum float32
-	utils.Parallel(len(x), runtime.NumCPU(), func(_, offset, size int) {
-		for i := 0; i < size; i++ {
-			idx := offset + i
-			dx := float32(math.Exp(float64(x[idx] - max)))
-			x[idx] = dx
+	clear(values)
+	utils.Parallel(int(n), runtime.NumCPU(), func(batch, offset, size int) {
+		var sum float32
+		end := offset + size
+		for i := offset; i < end; i++ {
+			dx := float32(math.Exp(float64(x[i] - max)))
+			x[i] = dx
 			sum += dx
 		}
+		values[batch] = sum
 	})
-	utils.Parallel(len(x), runtime.NumCPU(), func(_, offset, size int) {
-		for i := 0; i < size; i++ {
-			idx := offset + i
-			x[idx] /= sum
+	sum := values[0]
+	for i := 1; i < len(values); i++ {
+		sum += values[i]
+	}
+	utils.Parallel(int(n), runtime.NumCPU(), func(_, offset, size int) {
+		end := offset + size
+		for i := offset; i < end; i++ {
+			x[i] /= sum
 		}
 	})
 }
 
 func SiLU(x []float32) {
 	utils.Parallel(len(x), runtime.NumCPU(), func(_, offset, size int) {
-		for i := 0; i < size; i++ {
-			idx := offset + i
-			x[idx] *= Sigmoid(x[idx])
+		end := offset + size
+		for i := offset; i < end; i++ {
+			x[i] *= Sigmoid(x[i])
 		}
 	})
 }
@@ -100,9 +122,9 @@ func Sigmoid(x float32) float32 {
 // Mul x * w => x
 func Mul(x, w []float32) {
 	utils.Parallel(len(x), runtime.NumCPU(), func(_, offset, size int) {
-		for i := 0; i < size; i++ {
-			idx := offset + i
-			x[idx] *= w[idx]
+		end := offset + size
+		for i := offset; i < end; i++ {
+			x[i] *= w[i]
 		}
 	})
 }
@@ -135,9 +157,18 @@ func ROPE(q, k []float32, cursor, headSize int64) {
 // Add x + w => x
 func Add(x, w []float32) {
 	utils.Parallel(len(x), runtime.NumCPU(), func(_, offset, size int) {
-		for i := 0; i < size; i++ {
-			idx := offset + i
-			x[idx] += w[idx]
+		end := offset + size
+		for i := offset; i < end; i++ {
+			x[i] += w[i]
+		}
+	})
+}
+
+func clear(x []float32) {
+	utils.Parallel(len(x), runtime.NumCPU(), func(_, offset, size int) {
+		end := offset + size
+		for i := offset; i < end; i++ {
+			x[i] = 0
 		}
 	})
 }
