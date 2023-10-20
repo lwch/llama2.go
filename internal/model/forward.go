@@ -3,9 +3,9 @@ package model
 import (
 	"fmt"
 	"llama2/internal/math"
-	math2 "math"
-	"runtime"
 	"sync"
+
+	"github.com/chewxy/math32"
 )
 
 const maxInferenceLength = 2048 // max inference length of LLAMA2
@@ -142,7 +142,7 @@ func (m *Model) attention(ctx *Context, layer int64, x []float32, cursor int64) 
 		math.MatMul(ctx.dx, wv, 1, ctx.kvDim, m.embeddingDim, ctx.attnV) // (1, kv_dim)
 	}()
 	wg.Wait()
-	clear(ctx.dx)
+	math.Clear(ctx.dx)
 
 	math.ROPE(ctx.attnQ, ctx.attnK, cursor, ctx.headDim)
 
@@ -154,41 +154,35 @@ func (m *Model) attention(ctx *Context, layer int64, x []float32, cursor int64) 
 	attnV := ctx.cacheV[layer][:seqlen*ctx.kvDim] // (seqlen, kv_dim)
 
 	// attention
-	scale := math2.Sqrt(float64(ctx.headDim))
-	wg.Add(int(m.heads))
+	scale := math32.Sqrt(float32(ctx.headDim))
 	for head := int64(0); head < m.heads; head++ {
-		go func(head int64) {
-			defer wg.Done()
-			defer runtime.GC()
+		headIdx := head * ctx.headDim
+		offsetV := (head % m.kvHeads) * ctx.headDim
 
-			headIdx := head * ctx.headDim
+		// q @ k^T
+		// (1, head_dim) @ (head_dim, seqlen) => (1, seqlen)
+		q := ctx.attnQ[headIdx : headIdx+ctx.headDim] // (1, head_dim)
+		score := ctx.scores[head]                     // (seqlen)
+		for cursor := int64(0); cursor < seqlen; cursor++ {
+			idx := cursor*m.kvHeads*ctx.headDim + offsetV
+			k := attnK[idx : idx+ctx.headDim]                            // (head_dim, 1), repeat k if kv_heads < heads
+			math.MatMul(q, k, 1, 1, ctx.headDim, score[cursor:cursor+1]) // (1, head_size) @ (head_size, 1) => (1)
+			score[cursor] /= scale
+		}
 
-			// q @ k^T
-			// (1, head_dim) @ (head_dim, seqlen) => (1, seqlen)
-			q := ctx.attnQ[headIdx : headIdx+ctx.headDim] // (1, head_dim)
-			score := ctx.scores[head][:seqlen]            // (seqlen)
-			for cursor := int64(0); cursor < seqlen; cursor++ {
-				idx := cursor*m.kvHeads*ctx.headDim + (head%m.kvHeads)*ctx.headDim
-				k := attnK[idx : idx+ctx.headDim]                            // (head_dim, 1), repeat k if kv_heads < heads
-				math.MatMul(q, k, 1, 1, ctx.headDim, score[cursor:cursor+1]) // (1, head_size) @ (head_size, 1) => (1)
-				score[cursor] /= float32(scale)
-			}
+		// softmax
+		// (seqlen)
+		math.Softmax(score[:], seqlen)
 
-			// softmax
-			// (seqlen)
-			math.Softmax(score, seqlen)
-
-			// score @ v
-			// (seqlen) @ (seqlen, head_dim) => (head_dim)
-			for cursor := int64(0); cursor < seqlen; cursor++ {
-				idx := cursor * m.kvHeads * ctx.headDim
-				for dim := int64(0); dim < ctx.headDim; dim++ {
-					ctx.dx[head*ctx.headDim+dim] += score[cursor] * attnV[idx+(head%m.kvHeads)*ctx.headDim+dim] // repeat v if kv_heads < heads
-				}
-			}
-		}(head)
+		offsetX := head * ctx.headDim
+		dx := ctx.dx[offsetX : offsetX+ctx.headDim]
+		// score @ v
+		// (seqlen) @ (seqlen, head_dim) => (head_dim)
+		for cursor := int64(0); cursor < seqlen; cursor++ {
+			idx := cursor*m.kvHeads*ctx.headDim + offsetV
+			math.Axpy(score[cursor], attnV[idx:idx+ctx.headDim], dx)
+		}
 	}
-	wg.Wait()
 
 	// dx @ wo
 	// (1, dim) @ (dim, dim) => (1, dim)
@@ -230,6 +224,7 @@ func (m *Model) feedForward(ctx *Context, x []float32, layer int64) error {
 
 	go func() {
 		defer wg.Done()
+
 		// dx @ w1
 		// (1, dim) @ (dim, dim2) => (1, dim2)
 		math.MatMul(ctx.dx, w1, 1, dim2, m.embeddingDim, ctx.ffnLeft) // (1, dim2)
@@ -239,10 +234,11 @@ func (m *Model) feedForward(ctx *Context, x []float32, layer int64) error {
 		math.SiLU(ctx.ffnLeft) // (1, dim2)
 	}()
 
-	// dx @ w3
-	// (1, dim) @ (dim, dim2) => (1, dim2)
 	go func() {
 		defer wg.Done()
+
+		// dx @ w3
+		// (1, dim) @ (dim, dim2) => (1, dim2)
 		math.MatMul(ctx.dx, w3, 1, dim2, m.embeddingDim, ctx.ffnRight) // (1, dim2)
 	}()
 
@@ -259,10 +255,4 @@ func (m *Model) feedForward(ctx *Context, x []float32, layer int64) error {
 	// residual connection
 	math.Add(x, ctx.ffnY) // (1, dim)
 	return nil
-}
-
-func clear(x []float32) {
-	for i := range x {
-		x[i] = 0
-	}
 }
