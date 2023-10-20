@@ -2,9 +2,9 @@ package math
 
 import (
 	"llama2/internal/utils"
-	"math"
 	"runtime"
 
+	"github.com/chewxy/math32"
 	"gonum.org/v1/gonum/blas"
 	"gonum.org/v1/gonum/blas/blas32"
 )
@@ -56,7 +56,7 @@ func RMSNorm(x, w []float32, output []float32, eps float32) {
 	scale := blas32.Dot(bx, bx)
 	scale /= float32(len(x))
 	scale += eps
-	scale = 1 / float32(math.Sqrt(float64(scale)))
+	scale = 1 / math32.Sqrt(scale)
 	utils.Parallel(len(x), runtime.NumCPU(), func(_, offset, size int) {
 		end := offset + size
 		for i := offset; i < end; i++ {
@@ -66,6 +66,7 @@ func RMSNorm(x, w []float32, output []float32, eps float32) {
 }
 
 func Softmax(x []float32, n int64) {
+	// get max
 	values := make([]float32, runtime.NumCPU())
 	utils.Parallel(int(n), runtime.NumCPU(), func(batch, offset, size int) {
 		max := x[offset]
@@ -83,12 +84,13 @@ func Softmax(x []float32, n int64) {
 			max = values[i]
 		}
 	}
-	clear(values)
+	// exp
+	Clear(values)
 	utils.Parallel(int(n), runtime.NumCPU(), func(batch, offset, size int) {
 		var sum float32
 		end := offset + size
 		for i := offset; i < end; i++ {
-			dx := float32(math.Exp(float64(x[i] - max)))
+			dx := math32.Exp(x[i] - max)
 			x[i] = dx
 			sum += dx
 		}
@@ -98,12 +100,13 @@ func Softmax(x []float32, n int64) {
 	for i := 1; i < len(values); i++ {
 		sum += values[i]
 	}
-	utils.Parallel(int(n), runtime.NumCPU(), func(_, offset, size int) {
-		end := offset + size
-		for i := offset; i < end; i++ {
-			x[i] /= sum
-		}
-	})
+	// normalize
+	bx := blas32.Vector{
+		N:    len(x),
+		Inc:  1,
+		Data: x,
+	}
+	blas32.Scal(1/sum, bx)
 }
 
 func SiLU(x []float32) {
@@ -116,7 +119,7 @@ func SiLU(x []float32) {
 }
 
 func Sigmoid(x float32) float32 {
-	return 1 / (1 + float32(math.Exp(float64(-x))))
+	return 1 / (1 + math32.Exp(-x))
 }
 
 // Mul x * w => x
@@ -131,23 +134,23 @@ func Mul(x, w []float32) {
 
 // ROPE code from https://github.com/karpathy/llama2.c/blob/master/run.c#L265
 func ROPE(q, k []float32, cursor, headSize int64) {
-	set := func(x []float32, i int, fcr, fci float64) {
+	set := func(x []float32, i int, fcr, fci float32) {
 		if i >= len(x) {
 			return
 		}
 		v0 := x[i]
 		v1 := x[i+1]
-		x[i] = float32(fcr*float64(v0) - fci*float64(v1))
-		x[i+1] = float32(fcr*float64(v1) + fci*float64(v0))
+		x[i] = fcr*v0 - fci*v1
+		x[i+1] = fcr*v1 + fci*v0
 	}
 	utils.Parallel(len(q)/2, runtime.NumCPU(), func(_, offset, size int) {
 		for i := 0; i < size; i++ {
 			idx := (offset + i) * 2
 			headDim := int64(idx) % headSize
-			freq := 1 / math.Pow(10000, float64(headDim)/float64(headSize))
-			val := float64(cursor) * freq
-			fcr := math.Cos(val)
-			fci := math.Sin(val)
+			freq := 1 / math32.Pow(10000, float32(headDim)/float32(headSize))
+			val := float32(cursor) * freq
+			fcr := math32.Cos(val)
+			fci := math32.Sin(val)
 			set(q, idx, fcr, fci)
 			set(k, idx, fcr, fci)
 		}
@@ -156,19 +159,24 @@ func ROPE(q, k []float32, cursor, headSize int64) {
 
 // Add x + w => x
 func Add(x, w []float32) {
-	utils.Parallel(len(x), runtime.NumCPU(), func(_, offset, size int) {
-		end := offset + size
-		for i := offset; i < end; i++ {
-			x[i] += w[i]
-		}
-	})
+	bx := blas32.Vector{
+		N:    len(x),
+		Inc:  1,
+		Data: x,
+	}
+	bw := blas32.Vector{
+		N:    len(w),
+		Inc:  1,
+		Data: w,
+	}
+	blas32.Axpy(1, bw, bx)
 }
 
-func clear(x []float32) {
-	utils.Parallel(len(x), runtime.NumCPU(), func(_, offset, size int) {
-		end := offset + size
-		for i := offset; i < end; i++ {
-			x[i] = 0
-		}
-	})
+func Clear(x []float32) {
+	bx := blas32.Vector{
+		N:    len(x),
+		Inc:  1,
+		Data: x,
+	}
+	blas32.Scal(0, bx)
 }
