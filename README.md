@@ -20,105 +20,106 @@ Port of Facebook's LLaMA model in pure go and use little memory.
 3. text completion
     ```shell
     cat << EOF | ./llama2 text-completion -m 7B.model [--cache]
-    2023/10/20 16:53:33 [INFO]model loaded
-    2023/10/20 16:53:33 [INFO]model info:
-    2023/10/20 16:53:33 [INFO]  + embedding dim: 4096
-    2023/10/20 16:53:33 [INFO]  + layers: 32
-    2023/10/20 16:53:33 [INFO]  + heads: 32
-    2023/10/20 16:53:33 [INFO]  + kv_heads: 32
-    2023/10/20 16:53:33 [INFO]  + q_embedding each head: 128
-    2023/10/20 16:53:33 [INFO]  + kv_embedding each head: 128
-    2023/10/20 16:53:33 [INFO]  + norm_eps: 1.000000e-05
-    2023/10/20 16:53:33 [INFO]warm up model...
-    2023/10/20 16:53:40 [INFO]warm up done
-    cost: 829.810388ms, prompt: [<s>], inference: [ Home]
-    cost: 812.214704ms, prompt: [Tra], inference: [vel]
-    cost: 806.84939ms, prompt: [ns], inference: [parent]
-    cost: 812.460918ms, prompt: [late], inference: [.]
-    cost: 812.157835ms, prompt: [ Eng], inference: [
+    2023/10/20 17:02:36 [INFO]model loaded
+    2023/10/20 17:02:36 [INFO]model info:
+    2023/10/20 17:02:36 [INFO]  + embedding dim: 4096
+    2023/10/20 17:02:36 [INFO]  + layers: 32
+    2023/10/20 17:02:36 [INFO]  + heads: 32
+    2023/10/20 17:02:36 [INFO]  + kv_heads: 32
+    2023/10/20 17:02:36 [INFO]  + q_embedding each head: 128
+    2023/10/20 17:02:36 [INFO]  + kv_embedding each head: 128
+    2023/10/20 17:02:36 [INFO]  + norm_eps: 1.000000e-05
+    2023/10/20 17:02:36 [INFO]warm up model...
+    2023/10/20 17:02:43 [INFO]warm up done
+    cost: 805.096668ms, prompt: [<s>], inference: [ The]
+    cost: 794.034869ms, prompt: [Tra], inference: [vel]
+    cost: 791.610401ms, prompt: [ns], inference: [it]
+    cost: 785.028969ms, prompt: [late], inference: [.]
+    cost: 797.443303ms, prompt: [ Eng], inference: [
     ]
-    cost: 814.588164ms, prompt: [lish], inference: [ to]
-    cost: 818.31183ms, prompt: [ to], inference: [ Ur]
-    cost: 810.059738ms, prompt: [ Fre], inference: [ch]
-    cost: 807.891792ms, prompt: [nc], inference: [sh]
-    cost: 820.362737ms, prompt: [h], inference: [
+    cost: 789.511594ms, prompt: [lish], inference: [ to]
+    cost: 795.109561ms, prompt: [ to], inference: [ H]
+    cost: 786.051182ms, prompt: [ Fre], inference: [ch]
+    cost: 785.656581ms, prompt: [nc], inference: [sh]
+    cost: 802.650179ms, prompt: [h], inference: [
     ]
-    cost: 809.772945ms, prompt: [:], inference: [
+    cost: 789.006086ms, prompt: [:], inference: [
     ]
-    cost: 834.103258ms, prompt: [
-    ], inference: [Language]
-    cost: 824.401814ms, prompt: [
-    ], inference: [https]
-    cost: 813.738073ms, prompt: [se], inference: [ek]
-    cost: 815.641784ms, prompt: [a], inference: [
-    ]
-    cost: 823.850247ms, prompt: [ ott], inference: [oman]
-    cost: 815.05011ms, prompt: [er], inference: [
-    ]
-    cost: 836.127635ms, prompt: [ =>], inference: [ sea]
-    cost: 819.677082ms, prompt: [ lo], inference: [b]
-    cost: 819.233433ms, prompt: [ut], inference: [
-    ]
-    cost: 811.388681ms, prompt: [re], inference: [
-    ]
-    cost: 821.7185ms, prompt: [ de], inference: [ la]
-    cost: 816.537101ms, prompt: [ mer], inference: [
-    ]
-    cost: 816.128931ms, prompt: [
+    cost: 785.612863ms, prompt: [
+    ], inference: [What]
+    cost: 790.960297ms, prompt: [
     ], inference: [
     ]
-    cost: 825.586391ms, prompt: [pe], inference: [asant]
-    cost: 818.89321ms, prompt: [pper], inference: [ =>]
-    cost: 820.790231ms, prompt: [min], inference: [st]
-    cost: 815.140905ms, prompt: [t], inference: [ =>]
-    cost: 815.614272ms, prompt: [ =>], inference: [ po]
-    cost: 823.918492ms, prompt: [ ment], inference: [he]
-    cost: 840.859783ms, prompt: [he], inference: [ po]
-    cost: 830.357498ms, prompt: [ poi], inference: [rier]
-    cost: 818.728013ms, prompt: [vr], inference: [ée]
-    cost: 826.150385ms, prompt: [ée], inference: [
+    cost: 788.613766ms, prompt: [se], inference: [ek]
+    cost: 793.616298ms, prompt: [a], inference: [
     ]
-    cost: 822.37227ms, prompt: [
+    cost: 788.519639ms, prompt: [ ott], inference: [om]
+    cost: 786.268165ms, prompt: [er], inference: [
+    ]
+    cost: 799.88383ms, prompt: [ =>], inference: [
+    ]
+    cost: 790.308092ms, prompt: [ lo], inference: [b]
+    cost: 789.359057ms, prompt: [ut], inference: [ier]
+    cost: 792.335992ms, prompt: [re], inference: [
+    ]
+    cost: 799.485639ms, prompt: [ de], inference: [ la]
+    cost: 790.988376ms, prompt: [ mer], inference: [
+    ]
+    cost: 792.840929ms, prompt: [
     ], inference: [
     ]
-    cost: 813.261271ms, prompt: [pl], inference: [um]
-    cost: 826.634082ms, prompt: [ush], inference: [ =>]
-    cost: 829.685964ms, prompt: [ gir], inference: [der]
-    cost: 817.732717ms, prompt: [af], inference: [ =>]
-    cost: 830.508462ms, prompt: [e], inference: [ =>]
-    cost: 819.823964ms, prompt: [ =>], inference: [ g]
-    cost: 820.070487ms, prompt: [ gir], inference: [raf]
-    cost: 822.022788ms, prompt: [af], inference: [es]
-    cost: 833.944654ms, prompt: [e], inference: [ m]
-    cost: 811.898174ms, prompt: [ pel], inference: [uche]
-    cost: 819.079282ms, prompt: [uche], inference: [
+    cost: 789.421174ms, prompt: [pe], inference: [as]
+    cost: 796.805358ms, prompt: [pper], inference: [ =>]
+    cost: 797.496379ms, prompt: [min], inference: [ =>]
+    cost: 799.876148ms, prompt: [t], inference: [ =>]
+    cost: 795.272906ms, prompt: [ =>], inference: [ po]
+    cost: 800.170421ms, prompt: [ ment], inference: [he]
+    cost: 793.94568ms, prompt: [he], inference: [ po]
+    cost: 798.776807ms, prompt: [ poi], inference: [il]
+    cost: 792.626643ms, prompt: [vr], inference: [ée]
+    cost: 793.800323ms, prompt: [ée], inference: [
     ]
-    cost: 818.619303ms, prompt: [
+    cost: 802.375475ms, prompt: [
     ], inference: [
     ]
-    cost: 821.409612ms, prompt: [che], inference: [ese]
-    cost: 821.450601ms, prompt: [ese], inference: [ c]
-    cost: 828.624458ms, prompt: [ =>], inference: [ from]
-    cost: 815.680186ms, inference: [age]
-    cost: 826.836083ms, inference: [
+    cost: 792.565524ms, prompt: [pl], inference: [aster]
+    cost: 802.16297ms, prompt: [ush], inference: [ =>]
+    cost: 802.694426ms, prompt: [ gir], inference: [ll]
+    cost: 792.011098ms, prompt: [af], inference: [ =>]
+    cost: 794.957684ms, prompt: [e], inference: [ =>]
+    cost: 793.161168ms, prompt: [ =>], inference: [ gir]
+    cost: 808.839479ms, prompt: [ gir], inference: [raf]
+    cost: 793.328555ms, prompt: [af], inference: [ou]
+    cost: 798.369926ms, prompt: [e], inference: [ dou]
+    cost: 799.757471ms, prompt: [ pel], inference: [uche]
+    cost: 791.91408ms, prompt: [uche], inference: [
     ]
-    cost: 830.086712ms, inference: [
+    cost: 795.313464ms, prompt: [
+    ], inference: [
     ]
-    cost: 831.248282ms, inference: [Tra]
-    cost: 825.719731ms, inference: [ans]
-    cost: 828.722695ms, inference: [late]
-    cost: 825.164305ms, inference: [ French]
-    cost: 819.44112ms, inference: [ to]
-    cost: 825.693212ms, inference: [ English]
-    cost: 841.11027ms, inference: [:]
-    cost: 840.032918ms, inference: [
+    cost: 802.494011ms, prompt: [che], inference: [ese]
+    cost: 801.804049ms, prompt: [ese], inference: [ c]
+    cost: 799.417178ms, prompt: [ =>], inference: [ from]
+    cost: 794.279909ms, inference: [age]
+    cost: 794.393727ms, inference: [
     ]
-    cost: 826.969138ms, inference: [
+    cost: 800.798864ms, inference: [
     ]
-    cost: 825.815217ms, inference: [s]
-    cost: 820.554111ms, inference: [alt]
-    cost: 822.608378ms, inference: [ =>]
-    cost: 821.546985ms, inference: [ sel]
+    cost: 803.566172ms, inference: [Tra]
+    cost: 805.789997ms, inference: [ans]
+    cost: 798.737076ms, inference: [late]
+    cost: 801.030808ms, inference: [ Fre]
+    cost: 801.655272ms, inference: [nc]
+    cost: 798.778104ms, inference: [ch]
+    cost: 807.62774ms, inference: [ to]
+    cost: 800.958739ms, inference: [ English]
+    cost: 798.907121ms, inference: [:]
+    cost: 796.359556ms, inference: [
+    ]
+    cost: 807.457454ms, inference: [
+    ]
+    cost: 810.997564ms, inference: [lo]
+    cost: 803.872655ms, inference: [ut]
     =====================================
     Translate English to French:
 
@@ -127,10 +128,10 @@ Port of Facebook's LLaMA model in pure go and use little memory.
     plush girafe => girafe peluche
     cheese => fromage
 
-    Traanslate French to English:
+    Traanslate Frencch to English:
 
-    salt => sel
-    2023/10/20 16:54:34 [INFO]total cost: 54.26254411s, 1.23token/s
+    lout
+    2023/10/20 17:03:35 [INFO]total cost: 52.582370596s, 1.27token/s
     ```
 4. chat
     ```shell
