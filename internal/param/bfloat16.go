@@ -74,6 +74,17 @@ func (bf16 *BF16) Load(cache, fp32 bool) ([]float32, error) {
 }
 
 func (bf16 *BF16) LoadBatch(n uint64, data []float32) error {
+	if bf16.dataFP32 != nil {
+		copy(data, bf16.dataFP32[n*uint64(len(data)):])
+		return nil
+	}
+	if bf16.dataHalf != nil {
+		raw := bf16.dataHalf[n*uint64(len(data)):]
+		for i, v := range raw {
+			decodeBFloat16(&data[i], v)
+		}
+		return nil
+	}
 	batchSize := int64(1)
 	if len(bf16.shapes) > 1 {
 		batchSize = bf16.shapes[1]

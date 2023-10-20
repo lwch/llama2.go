@@ -130,6 +130,7 @@ func (m *Model) WarmUP(fp32 bool) {
 			p.Warmup(fp32)
 		}()
 	}
+	load(m.embeddingWeight)
 	for _, p := range m.attentionWQ {
 		load(p)
 	}
