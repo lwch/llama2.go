@@ -87,9 +87,10 @@ func TextCompletion(*cobra.Command, []string) {
 		}
 		tks = append(tks, nextToken)
 	}
+	cost := time.Since(inferenceBegin)
 
 	fmt.Println("=====================================")
 	fmt.Println(tk.Decode(tks))
 
-	logging.Info("total cost: %s", time.Since(inferenceBegin))
+	logging.Info("total cost: %s, %.02ftoken/s", cost, float64(len(tks))/cost.Seconds())
 }

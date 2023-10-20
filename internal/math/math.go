@@ -33,26 +33,19 @@ func MatMul(x, w []float32, m, n, d int64, output []float32) {
 }
 
 func RMSNorm(x, w []float32, output []float32, eps float32) {
-	values := make([]float32, runtime.NumCPU())
-	utils.Parallel(len(x), runtime.NumCPU(), func(batch, offset, size int) {
-		var sum float32
-		for i := 0; i < size; i++ {
-			idx := offset + i
-			sum += float32(math.Pow(float64(x[idx]), 2))
-		}
-		values[batch] = sum
-	})
-	var scale float32
-	for i := 0; i < len(values); i++ {
-		scale += values[i]
+	bx := blas32.Vector{
+		N:    len(x),
+		Inc:  1,
+		Data: x,
 	}
+	scale := blas32.Dot(bx, bx)
 	scale /= float32(len(x))
 	scale += eps
 	scale = 1 / float32(math.Sqrt(float64(scale)))
 	utils.Parallel(len(x), runtime.NumCPU(), func(_, offset, size int) {
 		for i := 0; i < size; i++ {
 			idx := offset + i
-			output[idx] = x[idx] * scale * w[idx]
+			output[idx] = scale * x[idx] * w[idx]
 		}
 	})
 }
