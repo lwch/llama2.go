@@ -157,14 +157,14 @@ func (m *Model) attention(ctx *Context, layer int64, x []float32, cursor int64) 
 	scale := math32.Sqrt(float32(ctx.headDim))
 	for head := int64(0); head < m.heads; head++ {
 		headIdx := head * ctx.headDim
-		offsetV := (head % m.kvHeads) * ctx.headDim
+		offsetKV := (head % m.kvHeads) * ctx.headDim
 
 		// q @ k^T
 		// (1, head_dim) @ (head_dim, seqlen) => (1, seqlen)
 		q := ctx.attnQ[headIdx : headIdx+ctx.headDim] // (1, head_dim)
 		score := ctx.scores[head]                     // (seqlen)
 		for cursor := int64(0); cursor < seqlen; cursor++ {
-			idx := cursor*m.kvHeads*ctx.headDim + offsetV
+			idx := cursor*m.kvHeads*ctx.headDim + offsetKV
 			k := attnK[idx : idx+ctx.headDim]                            // (head_dim, 1), repeat k if kv_heads < heads
 			math.MatMul(q, k, 1, 1, ctx.headDim, score[cursor:cursor+1]) // (1, head_size) @ (head_size, 1) => (1)
 			score[cursor] /= scale
@@ -176,11 +176,12 @@ func (m *Model) attention(ctx *Context, layer int64, x []float32, cursor int64) 
 
 		offsetX := head * ctx.headDim
 		dx := ctx.dx[offsetX : offsetX+ctx.headDim]
+		idx = offsetKV
 		// score @ v
 		// (seqlen) @ (seqlen, head_dim) => (head_dim)
 		for cursor := int64(0); cursor < seqlen; cursor++ {
-			idx := cursor*m.kvHeads*ctx.headDim + offsetV
 			math.Axpy(score[cursor], attnV[idx:idx+ctx.headDim], dx)
+			idx += m.kvHeads * ctx.headDim
 		}
 	}
 
